@@ -146,6 +146,21 @@ if (!class_exists('HR_CM_Admin_Page')) {
                 HR_CM_VERSION
             );
 
+            $table_screens = [
+                'toplevel_page_hr-customer-manager',
+                'hr-customer-manager_page_hr-customer-manager',
+                'hrcm_page_customers',
+            ];
+
+            if (in_array($hook_suffix, $table_screens, true)) {
+                wp_enqueue_style(
+                    'hrcm-admin-table',
+                    plugins_url('admin/css/hrcm-admin.css', HR_CM_PLUGIN_FILE),
+                    ['hr-cm-admin'],
+                    HR_CM_VERSION
+                );
+            }
+
             wp_enqueue_style('dashicons');
 
             wp_enqueue_script(
