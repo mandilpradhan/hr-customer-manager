@@ -18,13 +18,19 @@
     }
 
     $(function () {
-        $('.hr-cm-email-form').on('click', '.hr-cm-email-send', function () {
-            var form = $(this).closest('.hr-cm-email-form');
-            var select = form.find('.hr-cm-email-select');
+        $('.hrcm-table').on('click', '.hrcm-resend-btn', function () {
+            var button = $(this);
+
+            if (button.is(':disabled')) {
+                return;
+            }
+
+            var container = button.closest('.hrcm-resend');
+            var select = container.find('.hrcm-resend-select');
             var selected = select.val();
 
             if (!selected) {
-                select.focus();
+                select.trigger('focus');
                 return;
             }
 

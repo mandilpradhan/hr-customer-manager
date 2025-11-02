@@ -64,21 +64,6 @@
     border-color: var(--hr-cm-color-secondary);
 }
 
-.table-fullwidth {
-    width: 100%;
-    min-width: 960px;
-    position: relative;
-    table-layout: auto;
-    border-collapse: collapse;
-}
-
-.table-fullwidth thead th {
-    position: sticky;
-    top: 0;
-    background: #f6f7f7;
-    z-index: 1;
-}
-
 .hr-cm-table-wrapper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -87,19 +72,35 @@
     max-width: 100%;
 }
 
-.hr-cm-table td,
-.hr-cm-table th {
+.hrcm-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    min-width: 960px;
+}
+
+.hrcm-table thead th {
+    position: sticky;
+    top: 0;
+    background: #f6f7f7;
+    z-index: 1;
+}
+
+.hrcm-table td,
+.hrcm-table th {
     vertical-align: top;
-    word-break: break-word;
+    word-break: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     min-width: 0;
 }
 
-.hr-cm-traveler strong {
-    display: block;
-    font-size: 14px;
+.hrcm-table th.resend-col,
+.hrcm-table td.resend-col {
+    width: 220px;
 }
 
-.hr-cm-email,
 .hr-cm-muted {
     color: var(--hr-cm-color-muted);
     display: inline-block;
@@ -107,51 +108,7 @@
     font-size: 13px;
 }
 
-.hr-cm-lead {
-    margin-top: 6px;
-    padding-top: 6px;
-    border-top: 1px dashed #dcdcde;
-    color: var(--hr-cm-color-muted);
-    font-size: 13px;
-}
-
-.hr-cm-lead .hr-cm-label {
-    font-weight: 600;
-    margin-right: 4px;
-    color: #1d2327;
-}
-
-.hr-cm-badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-weight: 600;
-    font-size: 12px;
-    color: #fff;
-}
-
-.hr-cm-badge.paid {
-    background: var(--hr-cm-color-paid);
-}
-
-.hr-cm-badge.due {
-    background: var(--hr-cm-color-primary);
-    color: #3a2a00;
-}
-
-.hr-cm-badge.due-critical {
-    background: #d63638;
-}
-
-.hr-cm-status-text {
-    font-weight: 600;
-    font-size: 12px;
-    color: #1d2327;
-    display: inline-block;
-    padding: 4px 0;
-}
-
-.hr-cm-booking-id {
+.hrcm-booking-id {
     font-weight: 600;
     white-space: nowrap;
 }
@@ -162,36 +119,56 @@
     color: var(--hr-cm-color-muted);
 }
 
-.hr-cm-email-form {
+.text-regular {
+    color: inherit;
+}
+
+.text-warn {
+    color: #d97706;
+}
+
+.text-danger {
+    color: #b91c1c;
+}
+
+.text-muted {
+    color: #6b7280;
+}
+
+.trav-email {
+    color: #374151;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.trav-sub {
+    color: #6b7280;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.hrcm-resend {
     display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
-.hr-cm-email-form select {
-    min-width: 180px;
-    flex: 1 1 220px;
+.hrcm-resend-select {
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.hr-cm-email-form .hr-cm-email-send {
-    flex: 0 0 auto;
-}
-
-.hr-cm-column-resend-email {
-    min-width: 260px;
-}
-
-.hr-cm-email-send.button-secondary {
-    background: var(--hr-cm-color-primary);
-    border-color: var(--hr-cm-color-primary);
+.hrcm-resend-btn {
+    display: inline-block;
+    margin-top: 6px;
+    background: #ffc700;
+    border: 1px solid #e0b400;
     color: #3a2a00;
 }
 
-.hr-cm-email-send.button-secondary:hover {
-    background: var(--hr-cm-color-primary-hover);
-    border-color: var(--hr-cm-color-primary-hover);
-    color: #3a2a00;
+.hrcm-resend-btn:hover {
+    filter: brightness(0.95);
 }
 
 .hr-cm-toast {
@@ -215,22 +192,13 @@
 }
 
 @media (max-width: 960px) {
-    .table-fullwidth {
+    .hrcm-table {
         min-width: 720px;
-    }
-
-    .hr-cm-email-form {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .hr-cm-email-form select {
-        width: 100%;
     }
 }
 
 @media (max-width: 782px) {
-    .table-fullwidth {
+    .hrcm-table {
         min-width: 600px;
     }
 
