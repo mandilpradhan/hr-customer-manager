@@ -148,6 +148,8 @@ if (!class_exists('HR_CM_Admin_Page')) {
                 'hrCmAdmin',
                 [
                     'toastQueued' => __('Queued (placeholder)', 'hr-customer-manager'),
+                    'noticeQueued' => __('Queued (placeholder)', 'hr-customer-manager'),
+                    'dismissText'  => __('Dismiss this notice.', 'hr-customer-manager'),
                 ]
             );
         }

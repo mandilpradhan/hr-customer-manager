@@ -226,11 +226,11 @@ if (!class_exists('HR_CM_Data')) {
                 $paid = self::to_float(get_post_meta($booking_id, 'paid_amount', true));
             }
 
-            $payment_status  = sanitize_text_field(get_post_meta($booking_id, 'wp_travel_engine_booking_payment_status', true));
-            $booking_status  = sanitize_text_field(get_post_meta($booking_id, 'wp_travel_engine_booking_status', true));
+            $payment_status = sanitize_text_field(get_post_meta($booking_id, 'wp_travel_engine_booking_payment_status', true));
+            $booking_status = sanitize_text_field(get_post_meta($booking_id, 'wp_travel_engine_booking_status', true));
 
             return [
-                'due'      => $due,
+                'due'      => null === $due ? 0.0 : $due,
                 'paid'     => null === $paid ? 0.0 : $paid,
                 'p_status' => strtolower($payment_status),
                 'b_status' => strtolower($booking_status),
@@ -243,12 +243,12 @@ if (!class_exists('HR_CM_Data')) {
          * @param string       $yyyy_mm_dd Trip date string.
          * @param DateTimeZone $tz         Site timezone.
          *
-         * @return int
+         * @return int|null
          */
         public static function days_to_trip($yyyy_mm_dd, DateTimeZone $tz) {
             $date_string = trim((string) $yyyy_mm_dd);
             if ('' === $date_string) {
-                return 0;
+                return null;
             }
 
             $date = DateTimeImmutable::createFromFormat('Y-m-d', $date_string, $tz);
@@ -257,7 +257,7 @@ if (!class_exists('HR_CM_Data')) {
             }
 
             if (!$date) {
-                return 0;
+                return null;
             }
 
             $date  = $date->setTime(0, 0, 0);

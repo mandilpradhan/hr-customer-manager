@@ -7,6 +7,8 @@
     --hr-cm-color-muted: #6c7781;
     --hr-cm-spacing: 16px;
     --hr-cm-border-radius: 6px;
+    --hr-primary: #ffc700;
+    --hr-secondary: #5cc6d6;
 }
 
 .hr-cm-admin {
@@ -86,10 +88,9 @@
     z-index: 1;
 }
 
-.hrcm-table td,
-.hrcm-table th {
+.hrcm-table th,
+.hrcm-table td {
     vertical-align: top;
-    word-break: normal;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -98,7 +99,7 @@
 
 .hrcm-table th.resend-col,
 .hrcm-table td.resend-col {
-    width: 220px;
+    width: 280px;
 }
 
 .hr-cm-muted {
@@ -121,18 +122,22 @@
 
 .text-regular {
     color: inherit;
+    font-weight: 500;
 }
 
 .text-warn {
     color: #d97706;
+    font-weight: 600;
 }
 
 .text-danger {
     color: #b91c1c;
+    font-weight: 700;
 }
 
 .text-muted {
     color: #6b7280;
+    font-weight: 500;
 }
 
 .trav-email {
@@ -154,20 +159,37 @@
 }
 
 .hrcm-resend-select {
-    max-width: 100%;
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
 }
 
 .hrcm-resend-btn {
     display: inline-block;
-    margin-top: 6px;
-    background: #ffc700;
-    border: 1px solid #e0b400;
-    color: #3a2a00;
+    margin-top: 8px;
+    margin-left: 8px;
 }
 
 .hrcm-resend-btn:hover {
+    filter: brightness(0.95);
+}
+
+.hrcm-th {
+    cursor: pointer;
+    user-select: none;
+}
+
+.hrcm-th .sort-ind {
+    margin-left: 6px;
+    opacity: 0.7;
+}
+
+.hrcm-btn-primary {
+    background: var(--hr-primary);
+    border: 1px solid #e0b400;
+}
+
+.hrcm-btn-primary:hover {
     filter: brightness(0.95);
 }
 
