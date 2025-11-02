@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HR Customer Manager
  * Description: Admin-only management dashboard for customer journeys powered by WP Travel Engine bookings.
- * Version: 0.1.0
+ * Version: 0.2.0
  * Author: Himalayan Rides
  * License: GPL-2.0+
  */
@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
 }
 
 if (!defined('HR_CM_VERSION')) {
-    define('HR_CM_VERSION', '0.1.0');
+    define('HR_CM_VERSION', '0.2.0');
 }
 
 if (!defined('HR_CM_PLUGIN_FILE')) {
@@ -28,6 +28,7 @@ if (!defined('HR_CM_PLUGIN_URL')) {
 }
 
 require_once HR_CM_PLUGIN_DIR . 'includes/class-database.php';
+require_once HR_CM_PLUGIN_DIR . 'includes/class-data.php';
 require_once HR_CM_PLUGIN_DIR . 'includes/class-phase-calculator.php';
 require_once HR_CM_PLUGIN_DIR . 'includes/class-admin-table.php';
 require_once HR_CM_PLUGIN_DIR . 'admin/class-admin-page.php';

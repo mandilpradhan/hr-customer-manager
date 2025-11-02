@@ -22,23 +22,24 @@ if (!class_exists('HR_CM_Admin_Table')) {
         public function prepare_data() {
             $filters = $this->get_filters_from_request();
 
-            $bookings      = $this->get_all_bookings();
-            $trip_options  = $this->build_trip_options($bookings);
-            $filtered_data = $this->apply_filters($bookings, $filters['values']);
+            $rows          = $this->get_all_rows();
+            $trip_options  = $this->build_trip_options($rows);
+            $filtered_rows = $this->apply_filters($rows, $filters['values']);
 
             return [
-                'bookings'       => $filtered_data,
+                'rows'           => $filtered_rows,
                 'filters'        => $filters['values'],
                 'filter_options' => [
                     'trips'       => $trip_options,
                     'statuses'    => [
-                        'paid' => __('Fully Paid', 'hr-customer-manager'),
-                        'due'  => __('Balance Due', 'hr-customer-manager'),
+                        'paid'      => __('Fully Paid', 'hr-customer-manager'),
+                        'due'       => __('Balance Due', 'hr-customer-manager'),
+                        'cancelled' => __('Cancelled', 'hr-customer-manager'),
                     ],
                     'days_ranges' => [
-                        'lt30'    => __('Less than 30 days', 'hr-customer-manager'),
-                        '30to60'  => __('30 to 60 days', 'hr-customer-manager'),
-                        'gt60'    => __('More than 60 days', 'hr-customer-manager'),
+                        'lt30'   => __('Less than 30 days', 'hr-customer-manager'),
+                        '30to60' => __('30 to 60 days', 'hr-customer-manager'),
+                        'gt60'   => __('More than 60 days', 'hr-customer-manager'),
                     ],
                 ],
                 'nonce_action'   => 'hr_cm_filters',
@@ -46,11 +47,11 @@ if (!class_exists('HR_CM_Admin_Table')) {
         }
 
         /**
-         * Retrieve all booking posts and normalize them.
+         * Retrieve all booking posts and normalize them into traveler rows.
          *
          * @return array
          */
-        private function get_all_bookings() {
+        private function get_all_rows() {
             if (!class_exists('WP_Query')) {
                 return [];
             }
@@ -64,433 +65,225 @@ if (!class_exists('HR_CM_Admin_Table')) {
                 'no_found_rows'  => true,
             ]);
 
-            $items = [];
-
             if (!$query->have_posts()) {
-                return $items;
+                return [];
             }
 
             $timezone = wp_timezone();
-            $now      = new DateTimeImmutable('now', $timezone);
+            $rows     = [];
 
             foreach ($query->posts as $post) {
-                $items[] = $this->normalize_booking($post, $timezone, $now);
+                $context = $this->build_booking_context($post->ID, $timezone);
+                if (!$context) {
+                    continue;
+                }
+
+                foreach ($context['travelers'] as $traveler) {
+                    $rows[] = $this->build_traveler_row($traveler, $context);
+                }
             }
 
-            return array_filter($items);
+            return $rows;
         }
 
         /**
-         * Normalize a booking post into the structure required by the table.
+         * Build the shared booking context for traveler rows.
          *
-         * @param WP_Post          $post     Booking post instance.
-         * @param DateTimeZone     $timezone WordPress timezone.
-         * @param DateTimeImmutable $now     Current datetime in site timezone.
+         * @param int          $booking_id Booking post ID.
+         * @param DateTimeZone $timezone   Site timezone.
          *
          * @return array|null
          */
-        private function normalize_booking($post, DateTimeZone $timezone, DateTimeImmutable $now) {
-            $settings = get_post_meta($post->ID, 'wp_travel_engine_booking_setting', true);
-
-            if (!is_array($settings)) {
-                $settings = [];
+        private function build_booking_context($booking_id, DateTimeZone $timezone) {
+            $travelers = HR_CM_Data::get_travelers($booking_id);
+            if (empty($travelers)) {
+                return null;
             }
 
-            $place_order = isset($settings['place_order']) && is_array($settings['place_order'])
-                ? $settings['place_order']
-                : [];
+            $lead     = HR_CM_Data::get_lead($booking_id);
+            $trip     = HR_CM_Data::get_trip($booking_id);
+            $payment  = HR_CM_Data::get_payment($booking_id);
+            $days     = null;
 
-            $traveler = $this->extract_traveler($place_order);
-            $lead     = $this->extract_lead_traveler($post->ID, $place_order, $traveler);
+            if ('' !== $trip['date']) {
+                $days = HR_CM_Data::days_to_trip($trip['date'], $timezone);
+            }
 
-            $trip_name      = $this->extract_trip_name($post->ID, $place_order);
-            $raw_departure  = $this->extract_departure_raw($post->ID, $place_order);
-            $departure_data = $this->prepare_departure($raw_departure, $timezone, $now);
-
-            $is_paid      = $this->is_booking_paid($post->ID);
-            $status_label = $is_paid ? __('Fully Paid', 'hr-customer-manager') : __('Balance Due', 'hr-customer-manager');
-            $phase_label  = HR_CM_Phase_Calculator::get_phase_label($departure_data['days_to_trip']);
-            $payment_badge = $this->determine_payment_badge($is_paid, $departure_data['days_to_trip'], $status_label);
-            $manifest_status = $this->determine_manifest_status($post->ID, $departure_data['days_to_trip']);
+            $is_fully_paid = $this->is_fully_paid($payment);
+            $is_cancelled  = $this->is_cancelled($payment);
+            $phase_label   = HR_CM_Phase_Calculator::get_phase_label($days, $is_fully_paid);
 
             return [
-                'booking_id'      => (int) $post->ID,
+                'booking_id'    => (int) $booking_id,
+                'travelers'     => $travelers,
+                'lead'          => $lead,
+                'trip'          => $trip,
+                'payment'       => $payment,
+                'days_to_trip'  => $days,
+                'is_fully_paid' => $is_fully_paid,
+                'is_cancelled'  => $is_cancelled,
+                'phase_label'   => $phase_label,
+            ];
+        }
+
+        /**
+         * Build a row for a specific traveler.
+         *
+         * @param array $traveler Traveler data.
+         * @param array $context  Booking context.
+         *
+         * @return array
+         */
+        private function build_traveler_row($traveler, $context) {
+            $lead        = isset($context['lead']) ? $context['lead'] : ['name' => '', 'email' => ''];
+            $lead_exists = ('' !== trim((string) $lead['name'])) || ('' !== trim((string) $lead['email']));
+            $lead_differs = false;
+
+            if ($lead_exists) {
+                $lead_differs = !$this->strings_equal($traveler['name'], $lead['name'])
+                    || !$this->strings_equal($traveler['email'], $lead['email']);
+            }
+
+            $payment_display = $this->format_payment_status(
+                $context['payment'],
+                $context['days_to_trip'],
+                $context['is_fully_paid'],
+                $context['is_cancelled']
+            );
+
+            $info_display = $this->format_info_received($context['days_to_trip']);
+
+            return [
+                'booking_id'      => $context['booking_id'],
                 'traveler_name'   => $traveler['name'],
                 'traveler_email'  => $traveler['email'],
-                'lead_name'       => $lead['name'],
-                'lead_email'      => $lead['email'],
-                'lead_differs'    => $lead['differs'],
-                'trip_name'       => $trip_name,
-                'departure_date'  => $departure_data['formatted'],
-                'days_to_trip'    => $departure_data['days_to_trip'],
-                'payment_status'  => $is_paid ? 'paid' : 'due',
-                'payment_label'   => $status_label,
-                'payment_badge'   => $payment_badge,
-                'manifest_status' => $manifest_status,
-                'phase_label'     => $phase_label,
+                'lead_name'       => $lead_exists ? $lead['name'] : '',
+                'lead_email'      => $lead_exists ? $lead['email'] : '',
+                'show_lead'       => $lead_exists && $lead_differs,
+                'trip_name'       => $context['trip']['name'],
+                'departure_date'  => $context['trip']['date'],
+                'days_to_trip'    => $context['days_to_trip'],
+                'payment'         => $payment_display,
+                'info'            => $info_display,
+                'phase_label'     => $context['phase_label'],
+                'resend_disabled' => $context['is_cancelled'],
+                'payment_filter'  => $payment_display['filter'],
             ];
         }
 
         /**
-         * Determine how the payment status should be displayed.
+         * Determine if a booking is considered fully paid.
          *
-         * @param bool     $is_paid      Whether the booking is fully paid.
-         * @param int|null $days_to_trip Days remaining until departure.
-         * @param string   $label        Status label text.
-         *
-         * @return array
-         */
-        private function determine_payment_badge($is_paid, $days_to_trip, $label) {
-            if ($is_paid) {
-                return [
-                    'label'      => $label,
-                    'class'      => 'paid',
-                    'show_badge' => true,
-                ];
-            }
-
-            $days_remaining = null;
-            if (null !== $days_to_trip) {
-                if (is_numeric($days_to_trip)) {
-                    $days_remaining = (int) $days_to_trip;
-                }
-            }
-
-            if ($days_remaining === null) {
-                return [
-                    'label'      => $label,
-                    'class'      => 'due',
-                    'show_badge' => true,
-                ];
-            }
-
-            if ($days_remaining <= 60) {
-                return [
-                    'label'      => $label,
-                    'class'      => 'due-critical',
-                    'show_badge' => true,
-                ];
-            }
-
-            if ($days_remaining <= 75) {
-                return [
-                    'label'      => $label,
-                    'class'      => 'due',
-                    'show_badge' => true,
-                ];
-            }
-
-            return [
-                'label'      => $label,
-                'class'      => '',
-                'show_badge' => false,
-            ];
-        }
-
-        /**
-         * Determine manifest status display information.
-         *
-         * @param int      $post_id      Booking post ID.
-         * @param int|null $days_to_trip Days remaining until departure.
-         *
-         * @return array
-         */
-        private function determine_manifest_status($post_id, $days_to_trip) {
-            $manifest_meta = get_post_meta($post_id, 'manifest_received', true);
-            $received      = $this->cast_to_bool($manifest_meta);
-
-            if ($received) {
-                return [
-                    'label'      => __('Received', 'hr-customer-manager'),
-                    'class'      => 'paid',
-                    'show_badge' => true,
-                    'received'   => true,
-                ];
-            }
-
-            $label = __('Not Received', 'hr-customer-manager');
-
-            if ($days_to_trip === null) {
-                return [
-                    'label'      => $label,
-                    'class'      => 'due',
-                    'show_badge' => true,
-                    'received'   => false,
-                ];
-            }
-
-            if ($days_to_trip > 60) {
-                return [
-                    'label'      => $label,
-                    'class'      => '',
-                    'show_badge' => false,
-                    'received'   => false,
-                ];
-            }
-
-            if ($days_to_trip > 50) {
-                return [
-                    'label'      => $label,
-                    'class'      => 'due',
-                    'show_badge' => true,
-                    'received'   => false,
-                ];
-            }
-
-            return [
-                'label'      => $label,
-                'class'      => 'due-critical',
-                'show_badge' => true,
-                'received'   => false,
-            ];
-        }
-
-        /**
-         * Cast mixed values to boolean.
-         *
-         * @param mixed $value Value to cast.
+         * @param array $payment Payment context.
          *
          * @return bool
          */
-        private function cast_to_bool($value) {
-            if (is_bool($value)) {
-                return $value;
+        private function is_fully_paid($payment) {
+            $due     = isset($payment['due']) ? (float) $payment['due'] : null;
+            $status  = isset($payment['p_status']) ? strtolower((string) $payment['p_status']) : '';
+
+            if (null !== $due && $due <= 0.0) {
+                return true;
             }
-
-            if (is_numeric($value)) {
-                return (bool) (int) $value;
-            }
-
-            if (is_string($value)) {
-                $value = strtolower(trim($value));
-
-                return in_array($value, ['1', 'true', 'yes', 'y', 'on'], true);
-            }
-
-            return false;
-        }
-
-        /**
-         * Extract traveler information from meta.
-         *
-         * @param array $place_order Place order data.
-         *
-         * @return array
-         */
-        private function extract_traveler($place_order) {
-            $booking = isset($place_order['booking']) && is_array($place_order['booking']) ? $place_order['booking'] : [];
-
-            $first_name = isset($booking['fname']) ? sanitize_text_field($booking['fname']) : '';
-            $last_name  = isset($booking['lname']) ? sanitize_text_field($booking['lname']) : '';
-            $email      = isset($booking['email']) ? sanitize_email($booking['email']) : '';
-
-            $name = trim($first_name . ' ' . $last_name);
-
-            if ('' === $name) {
-                $name = __('Unknown Traveler', 'hr-customer-manager');
-            }
-
-            return [
-                'name'  => $name,
-                'email' => $email,
-            ];
-        }
-
-        /**
-         * Extract lead traveler details, falling back to traveler when identical or missing.
-         *
-         * @param int   $post_id     Booking post ID.
-         * @param array $place_order Place order data.
-         * @param array $traveler    Traveler data.
-         *
-         * @return array
-         */
-        private function extract_lead_traveler($post_id, $place_order, $traveler) {
-            $lead_data = isset($place_order['lead_traveler']) && is_array($place_order['lead_traveler'])
-                ? $place_order['lead_traveler']
-                : [];
-
-            $first_name = isset($lead_data['fname']) ? sanitize_text_field($lead_data['fname']) : '';
-            $last_name  = isset($lead_data['lname']) ? sanitize_text_field($lead_data['lname']) : '';
-            $email      = isset($lead_data['email']) ? sanitize_email($lead_data['email']) : '';
-
-            if ('' === $email) {
-                $meta_email = get_post_meta($post_id, 'lead_email', true);
-                $email      = sanitize_email($meta_email);
-            }
-
-            $name    = trim($first_name . ' ' . $last_name);
-            $differs = false;
-
-            if ('' === $name && '' === $email) {
-                $name  = $traveler['name'];
-                $email = $traveler['email'];
-            } else {
-                $differs = !self::strings_equal($traveler['name'], $name) || !self::strings_equal($traveler['email'], $email);
-            }
-
-            return [
-                'name'    => $name,
-                'email'   => $email,
-                'differs' => $differs,
-            ];
-        }
-
-        /**
-         * Determine if two strings are equal, ignoring case and whitespace.
-         *
-         * @param string $a First string.
-         * @param string $b Second string.
-         *
-         * @return bool
-         */
-        private static function strings_equal($a, $b) {
-            $normalized_a = strtolower(trim(wp_strip_all_tags((string) $a)));
-            $normalized_b = strtolower(trim(wp_strip_all_tags((string) $b)));
-
-            return $normalized_a === $normalized_b;
-        }
-
-        /**
-         * Extract trip name with fallback to order trips meta.
-         *
-         * @param int   $post_id     Booking post ID.
-         * @param array $place_order Place order data.
-         *
-         * @return string
-         */
-        private function extract_trip_name($post_id, $place_order) {
-            if (isset($place_order['tname'])) {
-                $name = sanitize_text_field($place_order['tname']);
-                if ('' !== $name) {
-                    return $name;
-                }
-            }
-
-            $order_trips = get_post_meta($post_id, 'order_trips', true);
-            if (is_array($order_trips)) {
-                $first = reset($order_trips);
-                if (is_array($first) && isset($first['title'])) {
-                    $name = sanitize_text_field($first['title']);
-                    if ('' !== $name) {
-                        return $name;
-                    }
-                }
-            } elseif (is_string($order_trips) && '' !== $order_trips) {
-                return sanitize_text_field($order_trips);
-            }
-
-            return __('Unknown Trip', 'hr-customer-manager');
-        }
-
-        /**
-         * Extract raw departure date value from meta.
-         *
-         * @param int   $post_id     Booking post ID.
-         * @param array $place_order Place order data.
-         *
-         * @return string
-         */
-        private function extract_departure_raw($post_id, $place_order) {
-            if (isset($place_order['datetime'])) {
-                $raw = sanitize_text_field($place_order['datetime']);
-                if ('' !== $raw) {
-                    return $raw;
-                }
-            }
-
-            $order_trips = get_post_meta($post_id, 'order_trips', true);
-            if (is_array($order_trips)) {
-                foreach ($order_trips as $trip) {
-                    if (is_array($trip) && isset($trip['trip_start_date'])) {
-                        $raw = sanitize_text_field($trip['trip_start_date']);
-                        if ('' !== $raw) {
-                            return $raw;
-                        }
-                    }
-                }
-            }
-
-            $meta_departure = get_post_meta($post_id, 'trip_start_date', true);
-            if ('' !== $meta_departure) {
-                return sanitize_text_field($meta_departure);
-            }
-
-            return '';
-        }
-
-        /**
-         * Prepare departure data including formatted date and days to trip.
-         *
-         * @param string            $raw_date Raw date string.
-         * @param DateTimeZone      $timezone Site timezone.
-         * @param DateTimeImmutable $now      Current time.
-         *
-         * @return array
-         */
-        private function prepare_departure($raw_date, DateTimeZone $timezone, DateTimeImmutable $now) {
-            $raw_date = trim((string) $raw_date);
-
-            if ('' === $raw_date) {
-                return [
-                    'formatted'    => '',
-                    'days_to_trip' => null,
-                ];
-            }
-
-            $date = date_create_immutable_from_format('Y-m-d', $raw_date, $timezone);
-            if (!$date) {
-                $date = date_create_immutable($raw_date, $timezone);
-            }
-
-            if (!$date) {
-                return [
-                    'formatted'    => '',
-                    'days_to_trip' => null,
-                ];
-            }
-
-            $days = (int) $now->diff($date)->format('%r%a');
-
-            return [
-                'formatted'    => $date->format('Y-m-d'),
-                'days_to_trip' => $days,
-            ];
-        }
-
-        /**
-         * Determine if the booking is fully paid.
-         *
-         * @param int $post_id Booking post ID.
-         *
-         * @return bool
-         */
-        private function is_booking_paid($post_id) {
-            $total_due = get_post_meta($post_id, 'total_due_amount', true);
-            if ('' !== $total_due && is_numeric($total_due)) {
-                if ((float) $total_due <= 0.0) {
-                    return true;
-                }
-            }
-
-            $status = get_post_meta($post_id, 'wp_travel_engine_booking_payment_status', true);
-            $status = strtolower((string) $status);
 
             return in_array($status, ['paid', 'completed'], true);
         }
 
         /**
-         * Build trip options map for filters.
+         * Determine if a booking has been cancelled or refunded.
          *
-         * @param array $bookings Booking rows.
+         * @param array $payment Payment context.
+         *
+         * @return bool
+         */
+        private function is_cancelled($payment) {
+            $status = isset($payment['b_status']) ? strtolower((string) $payment['b_status']) : '';
+
+            return in_array($status, ['cancelled', 'canceled', 'refunded'], true);
+        }
+
+        /**
+         * Prepare payment status display data.
+         *
+         * @param array    $payment      Payment context.
+         * @param int|null $days_to_trip Days remaining to trip.
+         * @param bool     $is_paid      Whether fully paid.
+         * @param bool     $is_cancelled Whether cancelled/refunded.
          *
          * @return array
          */
-        private function build_trip_options($bookings) {
+        private function format_payment_status($payment, $days_to_trip, $is_paid, $is_cancelled) {
+            if ($is_cancelled) {
+                return [
+                    'text'   => __('Cancelled', 'hr-customer-manager'),
+                    'class'  => 'text-muted',
+                    'filter' => 'cancelled',
+                ];
+            }
+
+            if ($is_paid) {
+                return [
+                    'text'   => __('Fully Paid', 'hr-customer-manager'),
+                    'class'  => 'text-regular',
+                    'filter' => 'paid',
+                ];
+            }
+
+            $class = 'text-regular';
+
+            if ($days_to_trip !== null) {
+                if ($days_to_trip < 60) {
+                    $class = 'text-danger';
+                } elseif ($days_to_trip <= 75) {
+                    $class = 'text-warn';
+                }
+            }
+
+            return [
+                'text'   => __('Balance Due', 'hr-customer-manager'),
+                'class'  => $class,
+                'filter' => 'due',
+            ];
+        }
+
+        /**
+         * Prepare info received display data.
+         *
+         * @param int|null $days_to_trip Days remaining to trip.
+         *
+         * @return array
+         */
+        private function format_info_received($days_to_trip) {
+            $class = 'text-muted';
+
+            if ($days_to_trip !== null) {
+                if ($days_to_trip > 60) {
+                    $class = 'text-regular';
+                } elseif ($days_to_trip >= 50) {
+                    $class = 'text-warn';
+                } else {
+                    $class = 'text-danger';
+                }
+            }
+
+            return [
+                'text'  => __('Not Received', 'hr-customer-manager'),
+                'class' => $class,
+            ];
+        }
+
+        /**
+         * Build trip options map for filters.
+         *
+         * @param array $rows Traveler rows.
+         *
+         * @return array
+         */
+        private function build_trip_options($rows) {
             $options = [];
 
-            foreach ($bookings as $booking) {
-                $trip_name = $booking['trip_name'];
+            foreach ($rows as $row) {
+                $trip_name = $row['trip_name'];
                 if (!isset($options[$trip_name])) {
                     $options[$trip_name] = [
                         'name'  => $trip_name,
@@ -498,12 +291,12 @@ if (!class_exists('HR_CM_Admin_Table')) {
                     ];
                 }
 
-                if ('' !== $booking['departure_date']) {
-                    $options[$trip_name]['dates'][$booking['departure_date']] = $booking['departure_date'];
+                if ('' !== $row['departure_date']) {
+                    $options[$trip_name]['dates'][$row['departure_date']] = $row['departure_date'];
                 }
             }
 
-            ksort($options);
+            ksort($options, SORT_NATURAL | SORT_FLAG_CASE);
 
             foreach ($options as &$trip) {
                 $dates = $trip['dates'];
@@ -516,34 +309,32 @@ if (!class_exists('HR_CM_Admin_Table')) {
         }
 
         /**
-         * Apply filters to booking data.
+         * Apply filters to traveler rows.
          *
-         * @param array $bookings Booking rows.
-         * @param array $filters  Filter values.
+         * @param array $rows    Traveler rows.
+         * @param array $filters Filter values.
          *
          * @return array
          */
-        private function apply_filters($bookings, $filters) {
+        private function apply_filters($rows, $filters) {
             $filtered = [];
 
-            foreach ($bookings as $booking) {
-                if (!$filters['nonce_valid']) {
-                    // No nonce supplied, treat as default view.
-                } else {
-                    if ('' !== $filters['trip'] && $booking['trip_name'] !== $filters['trip']) {
+            foreach ($rows as $row) {
+                if ($filters['nonce_valid']) {
+                    if ('' !== $filters['trip'] && $row['trip_name'] !== $filters['trip']) {
                         continue;
                     }
 
-                    if ('' !== $filters['departure'] && $booking['departure_date'] !== $filters['departure']) {
+                    if ('' !== $filters['departure'] && $row['departure_date'] !== $filters['departure']) {
                         continue;
                     }
 
-                    if ('' !== $filters['status'] && $booking['payment_status'] !== $filters['status']) {
+                    if ('' !== $filters['status'] && $row['payment_filter'] !== $filters['status']) {
                         continue;
                     }
 
                     if ('' !== $filters['days_range']) {
-                        $days = $booking['days_to_trip'];
+                        $days = $row['days_to_trip'];
                         if ($days === null) {
                             continue;
                         }
@@ -563,11 +354,11 @@ if (!class_exists('HR_CM_Admin_Table')) {
 
                     if ('' !== $filters['search']) {
                         $haystack = strtolower(
-                            $booking['traveler_name'] . ' ' .
-                            $booking['traveler_email'] . ' ' .
-                            $booking['lead_name'] . ' ' .
-                            $booking['lead_email'] . ' ' .
-                            $booking['trip_name']
+                            $row['traveler_name'] . ' ' .
+                            $row['traveler_email'] . ' ' .
+                            $row['lead_name'] . ' ' .
+                            $row['lead_email'] . ' ' .
+                            $row['trip_name']
                         );
 
                         if (false === strpos($haystack, strtolower($filters['search']))) {
@@ -576,7 +367,7 @@ if (!class_exists('HR_CM_Admin_Table')) {
                     }
                 }
 
-                $filtered[] = $booking;
+                $filtered[] = $row;
             }
 
             return $filtered;
@@ -627,6 +418,21 @@ if (!class_exists('HR_CM_Admin_Table')) {
             return [
                 'values' => $filters,
             ];
+        }
+
+        /**
+         * Determine if two strings are equal, ignoring case and whitespace.
+         *
+         * @param string $a First string.
+         * @param string $b Second string.
+         *
+         * @return bool
+         */
+        private function strings_equal($a, $b) {
+            $normalized_a = strtolower(trim(wp_strip_all_tags((string) $a)));
+            $normalized_b = strtolower(trim(wp_strip_all_tags((string) $b)));
+
+            return $normalized_a === $normalized_b;
         }
     }
 }

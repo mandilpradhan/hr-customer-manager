@@ -33,7 +33,7 @@ if ('' !== $selected_trip && isset($trip_options[$selected_trip])) {
     $dates_for_trip = $trip_options[$selected_trip]['dates'];
 }
 
-$bookings = isset($data['bookings']) ? $data['bookings'] : [];
+$rows = isset($data['rows']) ? $data['rows'] : [];
 ?>
 <div class="wrap hr-cm-admin">
     <h1><?php esc_html_e('Customer Overview', 'hr-customer-manager'); ?></h1>
@@ -94,7 +94,7 @@ $bookings = isset($data['bookings']) ? $data['bookings'] : [];
     </form>
 
     <div class="hr-cm-table-wrapper">
-        <table class="wp-list-table widefat fixed striped table-view-list hr-cm-table table-fullwidth">
+        <table class="wp-list-table widefat fixed striped table-view-list hrcm-table">
             <thead>
                 <tr>
                     <th scope="col"><?php esc_html_e('Traveler(s)', 'hr-customer-manager'); ?></th>
@@ -103,71 +103,79 @@ $bookings = isset($data['bookings']) ? $data['bookings'] : [];
                     <th scope="col"><?php esc_html_e('Departure Date', 'hr-customer-manager'); ?></th>
                     <th scope="col"><?php esc_html_e('Days to Trip', 'hr-customer-manager'); ?></th>
                     <th scope="col"><?php esc_html_e('Payment Status', 'hr-customer-manager'); ?></th>
-                    <th scope="col"><?php esc_html_e('Manifest Received', 'hr-customer-manager'); ?></th>
+                    <th scope="col"><?php esc_html_e('Info received', 'hr-customer-manager'); ?></th>
                     <th scope="col"><?php esc_html_e('Current Phase', 'hr-customer-manager'); ?></th>
                     <th scope="col"><?php esc_html_e('Last Email Sent', 'hr-customer-manager'); ?></th>
-                    <th scope="col" class="hr-cm-column-resend-email"><?php esc_html_e('Resend Email', 'hr-customer-manager'); ?></th>
+                    <th scope="col" class="resend-col"><?php esc_html_e('Resend Email', 'hr-customer-manager'); ?></th>
                 </tr>
             </thead>
             <tbody>
-                <?php if (empty($bookings)) : ?>
+                <?php if (empty($rows)) : ?>
                     <tr>
                         <td colspan="10" class="hr-cm-empty">
                             <?php esc_html_e('No bookings found.', 'hr-customer-manager'); ?>
                         </td>
                     </tr>
                 <?php else : ?>
-                    <?php foreach ($bookings as $booking) : ?>
+                    <?php foreach ($rows as $row) : ?>
+                        <?php
+                        $disabled        = !empty($row['resend_disabled']);
+                        $disabled_attr   = $disabled ? 'disabled="disabled" aria-disabled="true"' : '';
+                        $edit_link       = get_edit_post_link($row['booking_id']);
+                        $has_departure   = '' !== $row['departure_date'];
+                        $has_trav_email  = '' !== $row['traveler_email'];
+                        $has_lead_email  = '' !== $row['lead_email'];
+                        ?>
                         <tr>
                             <td>
-                                <div class="hr-cm-traveler">
-                                    <strong><?php echo esc_html($booking['traveler_name']); ?></strong>
-                                    <span class="hr-cm-email"><?php echo esc_html($booking['traveler_email']); ?></span>
-                                </div>
-                                <?php if (!empty($booking['lead_differs'])) : ?>
-                                    <div class="hr-cm-lead">
-                                        <span class="hr-cm-label"><?php esc_html_e('Lead:', 'hr-customer-manager'); ?></span>
-                                        <span class="hr-cm-name"><?php echo esc_html($booking['lead_name']); ?></span>
-                                        <span class="hr-cm-email"><?php echo esc_html($booking['lead_email']); ?></span>
+                                <strong><?php echo esc_html($row['traveler_name']); ?></strong>
+                                <?php if ($has_trav_email) : ?>
+                                    <div class="trav-email"><?php echo esc_html($row['traveler_email']); ?></div>
+                                <?php endif; ?>
+                                <?php if (!empty($row['show_lead'])) : ?>
+                                    <div class="trav-sub">
+                                        <?php esc_html_e('Lead:', 'hr-customer-manager'); ?>
+                                        <?php echo ' ' . esc_html($row['lead_name']); ?>
+                                        <?php if ($has_lead_email) : ?>
+                                            <?php echo ' (' . esc_html($row['lead_email']) . ')'; ?>
+                                        <?php endif; ?>
                                     </div>
                                 <?php endif; ?>
                             </td>
-                            <td class="hr-cm-booking-id">#<?php echo esc_html($booking['booking_id']); ?></td>
-                            <td><?php echo esc_html($booking['trip_name']); ?></td>
-                            <td><?php echo esc_html($booking['departure_date']); ?></td>
+                            <td class="hrcm-booking-id">
+                                <?php if ($edit_link) : ?>
+                                    <a href="<?php echo esc_url($edit_link); ?>">#<?php echo esc_html($row['booking_id']); ?></a>
+                                <?php else : ?>
+                                    #<?php echo esc_html($row['booking_id']); ?>
+                                <?php endif; ?>
+                            </td>
+                            <td><?php echo esc_html($row['trip_name']); ?></td>
                             <td>
                                 <?php
-                                if ($booking['days_to_trip'] === null) {
+                                if (!$has_departure) {
                                     echo '&mdash;';
                                 } else {
-                                    echo esc_html(number_format_i18n($booking['days_to_trip']));
+                                    echo esc_html($row['departure_date']);
                                 }
                                 ?>
                             </td>
                             <td>
-                                <?php if (!empty($booking['payment_badge']['show_badge'])) : ?>
-                                    <span class="hr-cm-badge badge <?php echo esc_attr($booking['payment_badge']['class']); ?>">
-                                        <?php echo esc_html($booking['payment_badge']['label']); ?>
-                                    </span>
-                                <?php else : ?>
-                                    <span class="hr-cm-status-text"><?php echo esc_html($booking['payment_badge']['label']); ?></span>
-                                <?php endif; ?>
+                                <?php
+                                if ($row['days_to_trip'] === null) {
+                                    echo '&mdash;';
+                                } else {
+                                    echo esc_html(number_format_i18n($row['days_to_trip']));
+                                }
+                                ?>
                             </td>
-                            <td>
-                                <?php if (!empty($booking['manifest_status']['show_badge'])) : ?>
-                                    <span class="hr-cm-badge badge <?php echo esc_attr($booking['manifest_status']['class']); ?>">
-                                        <?php echo esc_html($booking['manifest_status']['label']); ?>
-                                    </span>
-                                <?php else : ?>
-                                    <span class="hr-cm-status-text"><?php echo esc_html($booking['manifest_status']['label']); ?></span>
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo esc_html($booking['phase_label']); ?></td>
+                            <td><span class="<?php echo esc_attr($row['payment']['class']); ?>"><?php echo esc_html($row['payment']['text']); ?></span></td>
+                            <td><span class="<?php echo esc_attr($row['info']['class']); ?>"><?php echo esc_html($row['info']['text']); ?></span></td>
+                            <td><?php echo esc_html($row['phase_label']); ?></td>
                             <td class="hr-cm-muted">&mdash;</td>
-                            <td class="hr-cm-column-resend-email">
-                                <form class="hr-cm-email-form" data-booking-id="<?php echo esc_attr($booking['booking_id']); ?>">
-                                    <label for="hr-cm-email-<?php echo esc_attr($booking['booking_id']); ?>" class="screen-reader-text"><?php esc_html_e('Choose email type', 'hr-customer-manager'); ?></label>
-                                    <select id="hr-cm-email-<?php echo esc_attr($booking['booking_id']); ?>" class="hr-cm-email-select">
+                            <td class="resend-col">
+                                <div class="hrcm-resend">
+                                    <label for="hrcm-email-<?php echo esc_attr($row['booking_id']); ?>" class="screen-reader-text"><?php esc_html_e('Choose email type', 'hr-customer-manager'); ?></label>
+                                    <select id="hrcm-email-<?php echo esc_attr($row['booking_id']); ?>" class="hrcm-resend-select" <?php echo $disabled_attr; ?>>
                                         <option value="" selected="selected"><?php esc_html_e('Select Email Template', 'hr-customer-manager'); ?></option>
                                         <option value="travel-insurance"><?php esc_html_e('Travel Insurance Reminder', 'hr-customer-manager'); ?></option>
                                         <option value="60-day-payment"><?php esc_html_e('60 Day Payment Reminder', 'hr-customer-manager'); ?></option>
@@ -182,10 +190,10 @@ $bookings = isset($data['bookings']) ? $data['bookings'] : [];
                                         <option value="trip-kickoff"><?php esc_html_e('Trip Kicks Off', 'hr-customer-manager'); ?></option>
                                         <option value="post-trip"><?php esc_html_e('Post-Trip Debrief', 'hr-customer-manager'); ?></option>
                                     </select>
-                                    <button type="button" class="button button-secondary hr-cm-email-send">
+                                    <button type="button" class="button button-secondary hrcm-resend-btn" <?php echo $disabled_attr; ?>>
                                         <?php esc_html_e('Resend', 'hr-customer-manager'); ?>
                                     </button>
-                                </form>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>

@@ -21,7 +21,7 @@ if (!class_exists('HR_CM_Phase_Calculator')) {
          *
          * @return string
          */
-        public static function get_phase_label($days_to_trip) {
+        public static function get_phase_label($days_to_trip, $is_fully_paid = false) {
             if ($days_to_trip === null) {
                 return __('Phase Unknown', 'hr-customer-manager');
             }
@@ -39,19 +39,27 @@ if (!class_exists('HR_CM_Phase_Calculator')) {
             }
 
             if ($days_to_trip <= 7) {
-                return __('Phase 6 – Final Details', 'hr-customer-manager');
+                $label = __('Phase 6 – Final Details', 'hr-customer-manager');
+
+                return self::maybe_add_paid_suffix($label, $is_fully_paid);
             }
 
             if ($days_to_trip <= 14) {
-                return __('Phase 5 – 14-Day Reminder', 'hr-customer-manager');
+                $label = __('Phase 5 – 14-Day Reminder', 'hr-customer-manager');
+
+                return self::maybe_add_paid_suffix($label, $is_fully_paid);
             }
 
             if ($days_to_trip <= 30) {
-                return __('Phase 4 – 30-Day Reminder', 'hr-customer-manager');
+                $label = __('Phase 4 – 30-Day Reminder', 'hr-customer-manager');
+
+                return self::maybe_add_paid_suffix($label, $is_fully_paid);
             }
 
             if ($days_to_trip <= 60) {
-                return __('Phase 3 – 60-Day Reminder / Prep (Paid)', 'hr-customer-manager');
+                $label = __('Phase 3 – 60-Day Reminder', 'hr-customer-manager');
+
+                return self::maybe_add_paid_suffix($label, $is_fully_paid);
             }
 
             if ($days_to_trip <= 120) {
@@ -59,6 +67,22 @@ if (!class_exists('HR_CM_Phase_Calculator')) {
             }
 
             return __('Phase 1 – Far Out', 'hr-customer-manager');
+        }
+
+        /**
+         * Append a paid suffix to reminder phases when applicable.
+         *
+         * @param string $label         Base phase label.
+         * @param bool   $is_fully_paid Whether the booking is fully paid.
+         *
+         * @return string
+         */
+        private static function maybe_add_paid_suffix($label, $is_fully_paid) {
+            if ($is_fully_paid) {
+                return $label . __(' / Prep (Paid)', 'hr-customer-manager');
+            }
+
+            return $label;
         }
     }
 }
