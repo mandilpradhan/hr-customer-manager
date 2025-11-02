@@ -106,7 +106,7 @@ $bookings = isset($data['bookings']) ? $data['bookings'] : [];
                     <th scope="col"><?php esc_html_e('Manifest Received', 'hr-customer-manager'); ?></th>
                     <th scope="col"><?php esc_html_e('Current Phase', 'hr-customer-manager'); ?></th>
                     <th scope="col"><?php esc_html_e('Last Email Sent', 'hr-customer-manager'); ?></th>
-                    <th scope="col"><?php esc_html_e('Resend Email', 'hr-customer-manager'); ?></th>
+                    <th scope="col" class="hr-cm-column-resend-email"><?php esc_html_e('Resend Email', 'hr-customer-manager'); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -164,7 +164,7 @@ $bookings = isset($data['bookings']) ? $data['bookings'] : [];
                             </td>
                             <td><?php echo esc_html($booking['phase_label']); ?></td>
                             <td class="hr-cm-muted">&mdash;</td>
-                            <td>
+                            <td class="hr-cm-column-resend-email">
                                 <form class="hr-cm-email-form" data-booking-id="<?php echo esc_attr($booking['booking_id']); ?>">
                                     <label for="hr-cm-email-<?php echo esc_attr($booking['booking_id']); ?>" class="screen-reader-text"><?php esc_html_e('Choose email type', 'hr-customer-manager'); ?></label>
                                     <select id="hr-cm-email-<?php echo esc_attr($booking['booking_id']); ?>" class="hr-cm-email-select">
