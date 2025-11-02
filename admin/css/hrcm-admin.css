@@ -68,11 +68,24 @@ table.wp-list-table.hrcm-table {
 }
 
 /* 8) Keep headers sortable icons aligned (Dashicons) */
+.hrcm-table th > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+}
+
 .hrcm-table th .sorting-indicator {
-  margin-left: 4px;
+  position: static;
+  margin: 0;
+}
+
+.hrcm-table th span {
+  white-space: nowrap;
 }
 
 /* 9) Pointer cursor for sortable headers */
 .hrcm-table th[data-sort] {
   cursor: pointer;
+  text-align: left;
 }
