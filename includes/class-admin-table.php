@@ -110,6 +110,8 @@ if (!class_exists('HR_CM_Admin_Table')) {
             $is_paid      = $this->is_booking_paid($post->ID);
             $status_label = $is_paid ? __('Fully Paid', 'hr-customer-manager') : __('Balance Due', 'hr-customer-manager');
             $phase_label  = HR_CM_Phase_Calculator::get_phase_label($departure_data['days_to_trip']);
+            $payment_badge = $this->determine_payment_badge($is_paid, $departure_data['days_to_trip'], $status_label);
+            $manifest_status = $this->determine_manifest_status($post->ID, $departure_data['days_to_trip']);
 
             return [
                 'booking_id'      => (int) $post->ID,
@@ -123,8 +125,142 @@ if (!class_exists('HR_CM_Admin_Table')) {
                 'days_to_trip'    => $departure_data['days_to_trip'],
                 'payment_status'  => $is_paid ? 'paid' : 'due',
                 'payment_label'   => $status_label,
+                'payment_badge'   => $payment_badge,
+                'manifest_status' => $manifest_status,
                 'phase_label'     => $phase_label,
             ];
+        }
+
+        /**
+         * Determine how the payment status should be displayed.
+         *
+         * @param bool     $is_paid      Whether the booking is fully paid.
+         * @param int|null $days_to_trip Days remaining until departure.
+         * @param string   $label        Status label text.
+         *
+         * @return array
+         */
+        private function determine_payment_badge($is_paid, $days_to_trip, $label) {
+            if ($is_paid) {
+                return [
+                    'label'      => $label,
+                    'class'      => 'paid',
+                    'show_badge' => true,
+                ];
+            }
+
+            if ($days_to_trip === null) {
+                return [
+                    'label'      => $label,
+                    'class'      => 'due',
+                    'show_badge' => true,
+                ];
+            }
+
+            if ($days_to_trip > 75) {
+                return [
+                    'label'      => $label,
+                    'class'      => '',
+                    'show_badge' => false,
+                ];
+            }
+
+            if ($days_to_trip > 60) {
+                return [
+                    'label'      => $label,
+                    'class'      => 'due',
+                    'show_badge' => true,
+                ];
+            }
+
+            return [
+                'label'      => $label,
+                'class'      => 'due-critical',
+                'show_badge' => true,
+            ];
+        }
+
+        /**
+         * Determine manifest status display information.
+         *
+         * @param int      $post_id      Booking post ID.
+         * @param int|null $days_to_trip Days remaining until departure.
+         *
+         * @return array
+         */
+        private function determine_manifest_status($post_id, $days_to_trip) {
+            $manifest_meta = get_post_meta($post_id, 'manifest_received', true);
+            $received      = $this->cast_to_bool($manifest_meta);
+
+            if ($received) {
+                return [
+                    'label'      => __('Received', 'hr-customer-manager'),
+                    'class'      => 'paid',
+                    'show_badge' => true,
+                    'received'   => true,
+                ];
+            }
+
+            $label = __('Not Received', 'hr-customer-manager');
+
+            if ($days_to_trip === null) {
+                return [
+                    'label'      => $label,
+                    'class'      => 'due',
+                    'show_badge' => true,
+                    'received'   => false,
+                ];
+            }
+
+            if ($days_to_trip > 60) {
+                return [
+                    'label'      => $label,
+                    'class'      => '',
+                    'show_badge' => false,
+                    'received'   => false,
+                ];
+            }
+
+            if ($days_to_trip > 50) {
+                return [
+                    'label'      => $label,
+                    'class'      => 'due',
+                    'show_badge' => true,
+                    'received'   => false,
+                ];
+            }
+
+            return [
+                'label'      => $label,
+                'class'      => 'due-critical',
+                'show_badge' => true,
+                'received'   => false,
+            ];
+        }
+
+        /**
+         * Cast mixed values to boolean.
+         *
+         * @param mixed $value Value to cast.
+         *
+         * @return bool
+         */
+        private function cast_to_bool($value) {
+            if (is_bool($value)) {
+                return $value;
+            }
+
+            if (is_numeric($value)) {
+                return (bool) (int) $value;
+            }
+
+            if (is_string($value)) {
+                $value = strtolower(trim($value));
+
+                return in_array($value, ['1', 'true', 'yes', 'y', 'on'], true);
+            }
+
+            return false;
         }
 
         /**
