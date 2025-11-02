@@ -151,8 +151,20 @@
     padding: 4px 0;
 }
 
+.hr-cm-table th.hr-cm-column-booking-id,
+.hr-cm-table td.hr-cm-column-booking-id {
+    width: 110px;
+}
+
 .hr-cm-booking-id {
     font-weight: 600;
+    white-space: nowrap;
+}
+
+.hr-cm-table th.hr-cm-column-days,
+.hr-cm-table td.hr-cm-column-days {
+    width: 110px;
+    text-align: right;
     white-space: nowrap;
 }
 
@@ -179,7 +191,7 @@
 }
 
 .hr-cm-column-resend-email {
-    min-width: 260px;
+    min-width: 320px;
 }
 
 .hr-cm-email-send.button-secondary {
