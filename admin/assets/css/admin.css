@@ -66,9 +66,10 @@
 
 .table-fullwidth {
     width: 100%;
-    max-width: 100%;
+    min-width: 960px;
     position: relative;
     table-layout: auto;
+    border-collapse: collapse;
 }
 
 .table-fullwidth thead th {
@@ -80,6 +81,7 @@
 
 .hr-cm-table-wrapper {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     margin-top: var(--hr-cm-spacing);
     width: 100%;
     max-width: 100%;
@@ -88,6 +90,8 @@
 .hr-cm-table td,
 .hr-cm-table th {
     vertical-align: top;
+    word-break: break-word;
+    min-width: 0;
 }
 
 .hr-cm-traveler strong {
@@ -162,10 +166,16 @@
     display: flex;
     gap: 8px;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .hr-cm-email-form select {
-    min-width: 220px;
+    min-width: 180px;
+    flex: 1 1 220px;
+}
+
+.hr-cm-email-form .hr-cm-email-send {
+    flex: 0 0 auto;
 }
 
 .hr-cm-email-send.button-secondary {
@@ -201,6 +211,10 @@
 }
 
 @media (max-width: 960px) {
+    .table-fullwidth {
+        min-width: 720px;
+    }
+
     .hr-cm-email-form {
         flex-direction: column;
         align-items: flex-start;
@@ -212,6 +226,10 @@
 }
 
 @media (max-width: 782px) {
+    .table-fullwidth {
+        min-width: 600px;
+    }
+
     .hr-cm-filters__row {
         flex-direction: column;
         align-items: stretch;

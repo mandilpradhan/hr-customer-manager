@@ -149,7 +149,14 @@ if (!class_exists('HR_CM_Admin_Table')) {
                 ];
             }
 
-            if ($days_to_trip === null) {
+            $days_remaining = null;
+            if (null !== $days_to_trip) {
+                if (is_numeric($days_to_trip)) {
+                    $days_remaining = (int) $days_to_trip;
+                }
+            }
+
+            if ($days_remaining === null) {
                 return [
                     'label'      => $label,
                     'class'      => 'due',
@@ -157,15 +164,15 @@ if (!class_exists('HR_CM_Admin_Table')) {
                 ];
             }
 
-            if ($days_to_trip > 75) {
+            if ($days_remaining <= 60) {
                 return [
                     'label'      => $label,
-                    'class'      => '',
-                    'show_badge' => false,
+                    'class'      => 'due-critical',
+                    'show_badge' => true,
                 ];
             }
 
-            if ($days_to_trip > 60) {
+            if ($days_remaining <= 75) {
                 return [
                     'label'      => $label,
                     'class'      => 'due',
@@ -175,8 +182,8 @@ if (!class_exists('HR_CM_Admin_Table')) {
 
             return [
                 'label'      => $label,
-                'class'      => 'due-critical',
-                'show_badge' => true,
+                'class'      => '',
+                'show_badge' => false,
             ];
         }
 
