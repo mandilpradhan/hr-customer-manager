@@ -178,6 +178,10 @@
     flex: 0 0 auto;
 }
 
+.hr-cm-column-resend-email {
+    min-width: 260px;
+}
+
 .hr-cm-email-send.button-secondary {
     background: var(--hr-cm-color-primary);
     border-color: var(--hr-cm-color-primary);
