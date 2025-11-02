@@ -1,0 +1,13 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node / composer (if added later)
+node_modules/
+vendor/
+
+# WP build artifacts
+*.log
+*.zip
