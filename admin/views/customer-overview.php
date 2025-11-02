@@ -42,13 +42,13 @@ $pagination     = wp_parse_args(
         'per_page'     => 25,
     ]
 );
-$per_page_options = isset($data['per_page_options']) ? (array) $data['per_page_options'] : [25, 50, 100, 250];
 $trip_departures  = isset($data['trip_departures']) ? $data['trip_departures'] : [];
 $query_args       = isset($data['query_args']) ? $data['query_args'] : [];
+$columns_config   = isset($data['columns']) ? (array) $data['columns'] : [];
 
 $dates_for_trip = [];
-if ('' !== $selected_trip && isset($trip_options[$selected_trip])) {
-    $dates_for_trip = $trip_options[$selected_trip]['dates'];
+if ('' !== $selected_trip && isset($trip_departures[$selected_trip])) {
+    $dates_for_trip = $trip_departures[$selected_trip];
 }
 
 $total_items  = (int) $pagination['total_items'];
@@ -69,14 +69,43 @@ $pagination_links = paginate_links(
     ]
 );
 
-$column_state = static function ($key) use ($sort, $dir) {
-    $is_active = ($key === $sort);
-    $indicator = $is_active ? ('asc' === $dir ? '▲' : '▼') : '↕';
-    $aria      = $is_active ? ('asc' === $dir ? 'ascending' : 'descending') : 'none';
+$screen         = function_exists('get_current_screen') ? get_current_screen() : null;
+$hidden_columns = ($screen && function_exists('get_hidden_columns')) ? get_hidden_columns($screen) : [];
+if (!is_array($hidden_columns)) {
+    $hidden_columns = [];
+}
+
+$all_columns     = array_keys($columns_config);
+$visible_columns = array_diff($all_columns, $hidden_columns);
+$visible_colspan = count($visible_columns);
+if ($visible_colspan < 1) {
+    $visible_colspan = count($all_columns);
+    if ($visible_colspan < 1) {
+        $visible_colspan = 1;
+    }
+}
+
+$column_state = static function ($column_key) use ($columns_config, $sort, $dir) {
+    $config    = isset($columns_config[$column_key]) ? $columns_config[$column_key] : [];
+    $sort_key  = isset($config['sort']) ? $config['sort'] : $column_key;
+    $is_active = ($sort_key === $sort);
+    $icon      = 'dashicons dashicons-sort';
+    $aria      = 'none';
+
+    if ($is_active) {
+        if ('asc' === $dir) {
+            $icon = 'dashicons dashicons-arrow-up-alt2';
+            $aria = 'ascending';
+        } else {
+            $icon = 'dashicons dashicons-arrow-down-alt2';
+            $aria = 'descending';
+        }
+    }
 
     return [
-        'indicator' => $indicator,
-        'aria'      => $aria,
+        'aria' => $aria,
+        'icon' => $icon,
+        'sort' => $sort_key,
     ];
 };
 ?>
@@ -87,7 +116,6 @@ $column_state = static function ($key) use ($sort, $dir) {
         <input type="hidden" name="page" value="hr-customer-manager" />
         <input type="hidden" name="sort" value="<?php echo esc_attr($sort); ?>" />
         <input type="hidden" name="dir" value="<?php echo esc_attr($dir); ?>" />
-        <input type="hidden" name="per_page" value="<?php echo esc_attr($per_page); ?>" />
         <input type="hidden" name="paged" value="1" />
         <?php wp_nonce_field($nonce_action, 'hr_cm_nonce'); ?>
         <div class="hr-cm-filters__row">
@@ -142,149 +170,204 @@ $column_state = static function ($key) use ($sort, $dir) {
         </div>
     </form>
 
-    <div class="tablenav top">
-        <div class="alignleft actions">
-            <label for="hrcm-per-page" class="screen-reader-text"><?php esc_html_e('Rows per page', 'hr-customer-manager'); ?></label>
-            <select id="hrcm-per-page">
-                <?php foreach ($per_page_options as $option) : ?>
-                    <option value="<?php echo esc_attr((int) $option); ?>" <?php selected((int) $option, $per_page); ?>><?php echo esc_html(number_format_i18n((int) $option)); ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="tablenav-pages">
-            <span class="displaying-num">
-                <?php
-                if ($total_items > 0) {
-                    printf(
-                        /* translators: 1: start number, 2: end number, 3: total items */
-                        esc_html__('Displaying %1$s–%2$s of %3$s travelers', 'hr-customer-manager'),
-                        esc_html(number_format_i18n($page_start)),
-                        esc_html(number_format_i18n($page_end)),
-                        esc_html(number_format_i18n($total_items))
-                    );
-                } else {
-                    esc_html_e('No travelers to display', 'hr-customer-manager');
-                }
-                ?>
-            </span>
-            <?php if (!empty($pagination_links)) : ?>
-                <span class="pagination-links"><?php echo wp_kses_post($pagination_links); ?></span>
-            <?php endif; ?>
-        </div>
-    </div>
-
     <div class="hr-cm-table-wrapper">
         <table class="wp-list-table widefat fixed striped table-view-list hrcm-table">
             <thead>
                 <tr>
-                    <?php $state = $column_state('traveler'); ?>
-                    <th scope="col" class="hrcm-th" data-sort="traveler" aria-sort="<?php echo esc_attr($state['aria']); ?>"><?php esc_html_e('Traveler(s)', 'hr-customer-manager'); ?><span class="sort-ind"><?php echo esc_html($state['indicator']); ?></span></th>
-                    <?php $state = $column_state('booking'); ?>
-                    <th scope="col" class="hrcm-th" data-sort="booking" aria-sort="<?php echo esc_attr($state['aria']); ?>"><?php esc_html_e('Booking ID', 'hr-customer-manager'); ?><span class="sort-ind"><?php echo esc_html($state['indicator']); ?></span></th>
-                    <?php $state = $column_state('trip'); ?>
-                    <th scope="col" class="hrcm-th" data-sort="trip" aria-sort="<?php echo esc_attr($state['aria']); ?>"><?php esc_html_e('Trip', 'hr-customer-manager'); ?><span class="sort-ind"><?php echo esc_html($state['indicator']); ?></span></th>
-                    <?php $state = $column_state('departure'); ?>
-                    <th scope="col" class="hrcm-th" data-sort="departure" aria-sort="<?php echo esc_attr($state['aria']); ?>"><?php esc_html_e('Departure', 'hr-customer-manager'); ?><span class="sort-ind"><?php echo esc_html($state['indicator']); ?></span></th>
-                    <?php $state = $column_state('days'); ?>
-                    <th scope="col" class="hrcm-th" data-sort="days" aria-sort="<?php echo esc_attr($state['aria']); ?>"><?php esc_html_e('Days to Trip', 'hr-customer-manager'); ?><span class="sort-ind"><?php echo esc_html($state['indicator']); ?></span></th>
-                    <?php $state = $column_state('payment'); ?>
-                    <th scope="col" class="hrcm-th" data-sort="payment" aria-sort="<?php echo esc_attr($state['aria']); ?>"><?php esc_html_e('Payment Status', 'hr-customer-manager'); ?><span class="sort-ind"><?php echo esc_html($state['indicator']); ?></span></th>
-                    <?php $state = $column_state('info'); ?>
-                    <th scope="col" class="hrcm-th" data-sort="info" aria-sort="<?php echo esc_attr($state['aria']); ?>"><?php esc_html_e('Info received', 'hr-customer-manager'); ?><span class="sort-ind"><?php echo esc_html($state['indicator']); ?></span></th>
-                    <?php $state = $column_state('phase'); ?>
-                    <th scope="col" class="hrcm-th" data-sort="phase" aria-sort="<?php echo esc_attr($state['aria']); ?>"><?php esc_html_e('Current Phase', 'hr-customer-manager'); ?><span class="sort-ind"><?php echo esc_html($state['indicator']); ?></span></th>
-                    <?php $state = $column_state('last_email'); ?>
-                    <th scope="col" class="hrcm-th" data-sort="last_email" aria-sort="<?php echo esc_attr($state['aria']); ?>"><?php esc_html_e('Last Email Sent', 'hr-customer-manager'); ?><span class="sort-ind"><?php echo esc_html($state['indicator']); ?></span></th>
-                    <?php $state = $column_state('resend'); ?>
-                    <th scope="col" class="resend-col hrcm-th" data-sort="resend" aria-sort="<?php echo esc_attr($state['aria']); ?>"><?php esc_html_e('Resend Email', 'hr-customer-manager'); ?><span class="sort-ind"><?php echo esc_html($state['indicator']); ?></span></th>
+                    <?php if (!in_array('traveler', $hidden_columns, true)) : ?>
+                        <?php $state = $column_state('traveler'); ?>
+                        <th scope="col" class="hrcm-th" data-sort="<?php echo esc_attr($state['sort']); ?>" aria-sort="<?php echo esc_attr($state['aria']); ?>">
+                            <?php esc_html_e('Traveler(s)', 'hr-customer-manager'); ?>
+                            <span class="sort-ind <?php echo esc_attr($state['icon']); ?>" aria-hidden="true"></span>
+                        </th>
+                    <?php endif; ?>
+                    <?php if (!in_array('booking', $hidden_columns, true)) : ?>
+                        <?php $state = $column_state('booking'); ?>
+                        <th scope="col" class="hrcm-th" data-sort="<?php echo esc_attr($state['sort']); ?>" aria-sort="<?php echo esc_attr($state['aria']); ?>">
+                            <?php esc_html_e('Booking ID', 'hr-customer-manager'); ?>
+                            <span class="sort-ind <?php echo esc_attr($state['icon']); ?>" aria-hidden="true"></span>
+                        </th>
+                    <?php endif; ?>
+                    <?php if (!in_array('trip', $hidden_columns, true)) : ?>
+                        <?php $state = $column_state('trip'); ?>
+                        <th scope="col" class="hrcm-th" data-sort="<?php echo esc_attr($state['sort']); ?>" aria-sort="<?php echo esc_attr($state['aria']); ?>">
+                            <?php esc_html_e('Trip', 'hr-customer-manager'); ?>
+                            <span class="sort-ind <?php echo esc_attr($state['icon']); ?>" aria-hidden="true"></span>
+                        </th>
+                    <?php endif; ?>
+                    <?php if (!in_array('departure', $hidden_columns, true)) : ?>
+                        <?php $state = $column_state('departure'); ?>
+                        <th scope="col" class="hrcm-th" data-sort="<?php echo esc_attr($state['sort']); ?>" aria-sort="<?php echo esc_attr($state['aria']); ?>">
+                            <?php esc_html_e('Departure', 'hr-customer-manager'); ?>
+                            <span class="sort-ind <?php echo esc_attr($state['icon']); ?>" aria-hidden="true"></span>
+                        </th>
+                    <?php endif; ?>
+                    <?php if (!in_array('days', $hidden_columns, true)) : ?>
+                        <?php $state = $column_state('days'); ?>
+                        <th scope="col" class="hrcm-th" data-sort="<?php echo esc_attr($state['sort']); ?>" aria-sort="<?php echo esc_attr($state['aria']); ?>">
+                            <?php esc_html_e('Days to Trip', 'hr-customer-manager'); ?>
+                            <span class="sort-ind <?php echo esc_attr($state['icon']); ?>" aria-hidden="true"></span>
+                        </th>
+                    <?php endif; ?>
+                    <?php if (!in_array('payment', $hidden_columns, true)) : ?>
+                        <?php $state = $column_state('payment'); ?>
+                        <th scope="col" class="hrcm-th" data-sort="<?php echo esc_attr($state['sort']); ?>" aria-sort="<?php echo esc_attr($state['aria']); ?>">
+                            <?php esc_html_e('Payment Status', 'hr-customer-manager'); ?>
+                            <span class="sort-ind <?php echo esc_attr($state['icon']); ?>" aria-hidden="true"></span>
+                        </th>
+                    <?php endif; ?>
+                    <?php if (!in_array('info', $hidden_columns, true)) : ?>
+                        <?php $state = $column_state('info'); ?>
+                        <th scope="col" class="hrcm-th" data-sort="<?php echo esc_attr($state['sort']); ?>" aria-sort="<?php echo esc_attr($state['aria']); ?>">
+                            <?php esc_html_e('Info received', 'hr-customer-manager'); ?>
+                            <span class="sort-ind <?php echo esc_attr($state['icon']); ?>" aria-hidden="true"></span>
+                        </th>
+                    <?php endif; ?>
+                    <?php if (!in_array('phase', $hidden_columns, true)) : ?>
+                        <?php $state = $column_state('phase'); ?>
+                        <th scope="col" class="hrcm-th" data-sort="<?php echo esc_attr($state['sort']); ?>" aria-sort="<?php echo esc_attr($state['aria']); ?>">
+                            <?php esc_html_e('Current Phase', 'hr-customer-manager'); ?>
+                            <span class="sort-ind <?php echo esc_attr($state['icon']); ?>" aria-hidden="true"></span>
+                        </th>
+                    <?php endif; ?>
+                    <?php if (!in_array('last_email', $hidden_columns, true)) : ?>
+                        <?php $state = $column_state('last_email'); ?>
+                        <th scope="col" class="hrcm-th" data-sort="<?php echo esc_attr($state['sort']); ?>" aria-sort="<?php echo esc_attr($state['aria']); ?>">
+                            <?php esc_html_e('Last Email Sent', 'hr-customer-manager'); ?>
+                            <span class="sort-ind <?php echo esc_attr($state['icon']); ?>" aria-hidden="true"></span>
+                        </th>
+                    <?php endif; ?>
+                    <?php if (!in_array('resend', $hidden_columns, true)) : ?>
+                        <?php $state = $column_state('resend'); ?>
+                        <th scope="col" class="resend-col hrcm-th" data-sort="<?php echo esc_attr($state['sort']); ?>" aria-sort="<?php echo esc_attr($state['aria']); ?>">
+                            <?php esc_html_e('Resend Email', 'hr-customer-manager'); ?>
+                            <span class="sort-ind <?php echo esc_attr($state['icon']); ?>" aria-hidden="true"></span>
+                        </th>
+                    <?php endif; ?>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($rows)) : ?>
                     <tr>
-                        <td colspan="10" class="hr-cm-empty">
+                        <td colspan="<?php echo (int) $visible_colspan; ?>" class="hr-cm-empty">
                             <?php esc_html_e('No bookings found.', 'hr-customer-manager'); ?>
                         </td>
                     </tr>
                 <?php else : ?>
                     <?php foreach ($rows as $row) : ?>
                         <?php
-                        $disabled       = !empty($row['resend_disabled']);
-                        $disabled_attr  = $disabled ? 'disabled="disabled" aria-disabled="true"' : '';
-                        $edit_link      = get_edit_post_link($row['booking_id']);
-                        $has_departure  = '' !== $row['departure_date'];
+                        $disabled      = !empty($row['resend_disabled']);
+                        $disabled_attr = $disabled ? 'disabled="disabled" aria-disabled="true"' : '';
+                        $edit_link     = get_edit_post_link($row['booking_id']);
+                        $has_departure = '' !== $row['departure_date'];
                         $has_trav_email = '' !== $row['traveler_email'];
-                        $has_lead_email = '' !== $row['lead_email'];
+                        $payment        = isset($row['payment']) ? $row['payment'] : [];
+                        $info           = isset($row['info']) ? $row['info'] : [];
+                        $payment_class  = isset($payment['is_badge']) && $payment['is_badge'] ? (isset($payment['badge_class']) ? $payment['badge_class'] : '') : (isset($payment['class']) ? $payment['class'] : '');
+                        $payment_class  = trim((string) $payment_class);
+                        $payment_text   = isset($payment['text']) ? $payment['text'] : '';
+                        $info_class     = isset($info['is_badge']) && $info['is_badge'] ? (isset($info['badge_class']) ? $info['badge_class'] : '') : (isset($info['class']) ? $info['class'] : '');
+                        $info_class     = trim((string) $info_class);
+                        $info_text      = isset($info['text']) ? $info['text'] : '';
                         ?>
                         <tr>
-                            <td>
-                                <strong><?php echo esc_html($row['traveler_name']); ?></strong>
-                                <?php if ($has_trav_email) : ?>
-                                    <div class="trav-email"><?php echo esc_html($row['traveler_email']); ?></div>
-                                <?php endif; ?>
-                                <?php if (!empty($row['show_lead'])) : ?>
-                                    <div class="trav-sub">
-                                        <?php esc_html_e('Lead:', 'hr-customer-manager'); ?>
-                                        <?php echo ' ' . esc_html($row['lead_name']); ?>
-                                        <?php if ($has_lead_email) : ?>
-                                            <?php echo ' (' . esc_html($row['lead_email']) . ')'; ?>
-                                        <?php endif; ?>
+                            <?php if (!in_array('traveler', $hidden_columns, true)) : ?>
+                                <td>
+                                    <strong><?php echo esc_html($row['traveler_name']); ?></strong>
+                                    <?php if ($has_trav_email) : ?>
+                                        <div class="trav-email"><?php echo esc_html($row['traveler_email']); ?></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($row['show_lead'])) : ?>
+                                        <div class="trav-sub">
+                                            <?php esc_html_e('Lead:', 'hr-customer-manager'); ?>
+                                            <?php echo ' ' . esc_html($row['lead_name']); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
+                            <?php endif; ?>
+                            <?php if (!in_array('booking', $hidden_columns, true)) : ?>
+                                <td class="hrcm-booking-id">
+                                    <?php if ($edit_link) : ?>
+                                        <a href="<?php echo esc_url($edit_link); ?>" target="_blank" rel="noopener noreferrer">#<?php echo esc_html($row['booking_id']); ?></a>
+                                    <?php else : ?>
+                                        #<?php echo esc_html($row['booking_id']); ?>
+                                    <?php endif; ?>
+                                </td>
+                            <?php endif; ?>
+                            <?php if (!in_array('trip', $hidden_columns, true)) : ?>
+                                <td><?php echo esc_html($row['trip_name']); ?></td>
+                            <?php endif; ?>
+                            <?php if (!in_array('departure', $hidden_columns, true)) : ?>
+                                <td>
+                                    <?php
+                                    if (!$has_departure) {
+                                        echo '&mdash;';
+                                    } else {
+                                        echo esc_html($row['departure_date']);
+                                    }
+                                    ?>
+                                </td>
+                            <?php endif; ?>
+                            <?php if (!in_array('days', $hidden_columns, true)) : ?>
+                                <td>
+                                    <?php
+                                    if ($row['days_to_trip'] === null) {
+                                        echo '&mdash;';
+                                    } else {
+                                        echo esc_html(number_format_i18n($row['days_to_trip']));
+                                    }
+                                    ?>
+                                </td>
+                            <?php endif; ?>
+                            <?php if (!in_array('payment', $hidden_columns, true)) : ?>
+                                <td>
+                                    <?php if ('' !== $payment_class) : ?>
+                                        <span class="<?php echo esc_attr($payment_class); ?>"><?php echo esc_html($payment_text); ?></span>
+                                    <?php else : ?>
+                                        <span><?php echo esc_html($payment_text); ?></span>
+                                    <?php endif; ?>
+                                </td>
+                            <?php endif; ?>
+                            <?php if (!in_array('info', $hidden_columns, true)) : ?>
+                                <td>
+                                    <?php if ('' !== $info_class) : ?>
+                                        <span class="<?php echo esc_attr($info_class); ?>"><?php echo esc_html($info_text); ?></span>
+                                    <?php else : ?>
+                                        <span><?php echo esc_html($info_text); ?></span>
+                                    <?php endif; ?>
+                                </td>
+                            <?php endif; ?>
+                            <?php if (!in_array('phase', $hidden_columns, true)) : ?>
+                                <td><?php echo esc_html($row['phase_label']); ?></td>
+                            <?php endif; ?>
+                            <?php if (!in_array('last_email', $hidden_columns, true)) : ?>
+                                <td class="hr-cm-muted"><?php echo esc_html($row['last_email_display']); ?></td>
+                            <?php endif; ?>
+                            <?php if (!in_array('resend', $hidden_columns, true)) : ?>
+                                <td class="resend-col">
+                                    <div class="hrcm-resend">
+                                        <label for="hrcm-email-<?php echo esc_attr($row['booking_id']); ?>" class="screen-reader-text"><?php esc_html_e('Choose email type', 'hr-customer-manager'); ?></label>
+                                        <select id="hrcm-email-<?php echo esc_attr($row['booking_id']); ?>" class="hrcm-resend-select" <?php echo $disabled_attr; ?>>
+                                            <option value="" selected="selected"><?php esc_html_e('Select Email Template', 'hr-customer-manager'); ?></option>
+                                            <option value="travel-insurance"><?php esc_html_e('Travel Insurance Reminder', 'hr-customer-manager'); ?></option>
+                                            <option value="60-day-payment"><?php esc_html_e('60 Day Payment Reminder', 'hr-customer-manager'); ?></option>
+                                            <option value="14-day-payment"><?php esc_html_e('14 Day Payment Reminder', 'hr-customer-manager'); ?></option>
+                                            <option value="7-day-payment"><?php esc_html_e('7 Day Payment Reminder', 'hr-customer-manager'); ?></option>
+                                            <option value="3-day-payment"><?php esc_html_e('3 Day Payment Reminder', 'hr-customer-manager'); ?></option>
+                                            <option value="trip-day"><?php esc_html_e('0 Day Payment Reminder', 'hr-customer-manager'); ?></option>
+                                            <option value="final-payment"><?php esc_html_e('Final Payment Reminder', 'hr-customer-manager'); ?></option>
+                                            <option value="rider-information"><?php esc_html_e('Rider Information Form', 'hr-customer-manager'); ?></option>
+                                            <option value="packing-list"><?php esc_html_e('Destination Pack + Packing List', 'hr-customer-manager'); ?></option>
+                                            <option value="arrival-info"><?php esc_html_e('Final Arrival Info', 'hr-customer-manager'); ?></option>
+                                            <option value="trip-kickoff"><?php esc_html_e('Trip Kicks Off', 'hr-customer-manager'); ?></option>
+                                            <option value="post-trip"><?php esc_html_e('Post-Trip Debrief', 'hr-customer-manager'); ?></option>
+                                        </select>
+                                        <button type="button" class="button button-secondary hrcm-resend-btn" <?php echo $disabled_attr; ?>>
+                                            <?php esc_html_e('Resend', 'hr-customer-manager'); ?>
+                                        </button>
                                     </div>
-                                <?php endif; ?>
-                            </td>
-                            <td class="hrcm-booking-id">
-                                <?php if ($edit_link) : ?>
-                                    <a href="<?php echo esc_url($edit_link); ?>" target="_blank" rel="noopener noreferrer">#<?php echo esc_html($row['booking_id']); ?></a>
-                                <?php else : ?>
-                                    #<?php echo esc_html($row['booking_id']); ?>
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo esc_html($row['trip_name']); ?></td>
-                            <td>
-                                <?php
-                                if (!$has_departure) {
-                                    echo '&mdash;';
-                                } else {
-                                    echo esc_html($row['departure_date']);
-                                }
-                                ?>
-                            </td>
-                            <td>
-                                <?php
-                                if ($row['days_to_trip'] === null) {
-                                    echo '&mdash;';
-                                } else {
-                                    echo esc_html(number_format_i18n($row['days_to_trip']));
-                                }
-                                ?>
-                            </td>
-                            <td><span class="<?php echo esc_attr($row['payment']['class']); ?>"><?php echo esc_html($row['payment']['text']); ?></span></td>
-                            <td><span class="<?php echo esc_attr($row['info']['class']); ?>"><?php echo esc_html($row['info']['text']); ?></span></td>
-                            <td><?php echo esc_html($row['phase_label']); ?></td>
-                            <td class="hr-cm-muted"><?php echo esc_html($row['last_email_display']); ?></td>
-                            <td class="resend-col">
-                                <div class="hrcm-resend">
-                                    <label for="hrcm-email-<?php echo esc_attr($row['booking_id']); ?>" class="screen-reader-text"><?php esc_html_e('Choose email type', 'hr-customer-manager'); ?></label>
-                                    <select id="hrcm-email-<?php echo esc_attr($row['booking_id']); ?>" class="hrcm-resend-select" <?php echo $disabled_attr; ?>>
-                                        <option value="" selected="selected"><?php esc_html_e('Select Email Template', 'hr-customer-manager'); ?></option>
-                                        <option value="travel-insurance"><?php esc_html_e('Travel Insurance Reminder', 'hr-customer-manager'); ?></option>
-                                        <option value="60-day-payment"><?php esc_html_e('60 Day Payment Reminder', 'hr-customer-manager'); ?></option>
-                                        <option value="14-day-payment"><?php esc_html_e('14 Day Payment Reminder', 'hr-customer-manager'); ?></option>
-                                        <option value="7-day-payment"><?php esc_html_e('7 Day Payment Reminder', 'hr-customer-manager'); ?></option>
-                                        <option value="3-day-payment"><?php esc_html_e('3 Day Payment Reminder', 'hr-customer-manager'); ?></option>
-                                        <option value="trip-day"><?php esc_html_e('0 Day Payment Reminder', 'hr-customer-manager'); ?></option>
-                                        <option value="final-payment"><?php esc_html_e('Final Payment Reminder', 'hr-customer-manager'); ?></option>
-                                        <option value="rider-information"><?php esc_html_e('Rider Information Form', 'hr-customer-manager'); ?></option>
-                                        <option value="packing-list"><?php esc_html_e('Destination Pack + Packing List', 'hr-customer-manager'); ?></option>
-                                        <option value="arrival-info"><?php esc_html_e('Final Arrival Info', 'hr-customer-manager'); ?></option>
-                                        <option value="trip-kickoff"><?php esc_html_e('Trip Kicks Off', 'hr-customer-manager'); ?></option>
-                                        <option value="post-trip"><?php esc_html_e('Post-Trip Debrief', 'hr-customer-manager'); ?></option>
-                                    </select>
-                                    <button type="button" class="button button-secondary hrcm-resend-btn" <?php echo $disabled_attr; ?>>
-                                        <?php esc_html_e('Resend', 'hr-customer-manager'); ?>
-                                    </button>
-                                </div>
-                            </td>
+                                </td>
+                            <?php endif; ?>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>

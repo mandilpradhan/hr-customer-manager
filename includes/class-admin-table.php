@@ -14,7 +14,15 @@ if (!class_exists('HR_CM_Admin_Table')) {
      * Prepares booking data for the admin table view.
      */
     class HR_CM_Admin_Table {
-        const PER_PAGE_OPTIONS = [25, 50, 100, 250];
+        const PER_PAGE_OPTION = 'hrcm_customers_per_page';
+        const DEFAULT_PER_PAGE = 25;
+
+        /**
+         * Cached map of normalized trip names to published trip IDs.
+         *
+         * @var array|null
+         */
+        private static $trip_id_cache = null;
 
         /**
          * Current row index for stable sorting.
@@ -38,6 +46,13 @@ if (!class_exists('HR_CM_Admin_Table')) {
             $sorted_rows   = $this->sort_rows($filtered_rows, $request['sort'], $request['dir']);
             $pagination    = $this->paginate_rows($sorted_rows, $request['per_page'], $request['paged']);
 
+            $selected_trip      = isset($request['filters']['trip']) ? $request['filters']['trip'] : '';
+            $initial_departures = [];
+
+            if ('' !== $selected_trip) {
+                $initial_departures[$selected_trip] = $this->get_departures_for_trip($selected_trip, $rows);
+            }
+
             return [
                 'rows'             => $pagination['rows'],
                 'filters'          => $request['filters'],
@@ -58,9 +73,9 @@ if (!class_exists('HR_CM_Admin_Table')) {
                 'sort'             => $request['sort'],
                 'dir'              => $request['dir'],
                 'pagination'       => $pagination,
-                'per_page_options' => self::PER_PAGE_OPTIONS,
-                'trip_departures'  => $this->build_trip_departure_map($trip_options),
+                'trip_departures'  => $initial_departures,
                 'query_args'       => $request['query_args'],
+                'columns'          => self::get_column_config(),
             ];
         }
 
@@ -80,10 +95,7 @@ if (!class_exists('HR_CM_Admin_Table')) {
                 $dir = 'asc';
             }
 
-            $per_page = isset($_GET['per_page']) ? (int) wp_unslash($_GET['per_page']) : self::PER_PAGE_OPTIONS[0];
-            if (!in_array($per_page, self::PER_PAGE_OPTIONS, true)) {
-                $per_page = self::PER_PAGE_OPTIONS[0];
-            }
+            $per_page = $this->get_items_per_page();
 
             $paged = isset($_GET['paged']) ? (int) wp_unslash($_GET['paged']) : 1;
             if ($paged < 1) {
@@ -96,8 +108,42 @@ if (!class_exists('HR_CM_Admin_Table')) {
                 'dir'       => $dir,
                 'per_page'  => $per_page,
                 'paged'     => $paged,
-                'query_args'=> $this->build_query_args($filters_data['values'], $sort, $dir, $per_page),
+                'query_args'=> $this->build_query_args($filters_data['values'], $sort, $dir),
             ];
+        }
+
+        /**
+         * Determine the per-page value from screen options.
+         *
+         * @return int
+         */
+        private function get_items_per_page() {
+            $default = self::DEFAULT_PER_PAGE;
+            $option  = self::PER_PAGE_OPTION;
+
+            $screen_option = '';
+            if (function_exists('get_current_screen')) {
+                $screen = get_current_screen();
+                if ($screen && class_exists('WP_Screen') && $screen instanceof WP_Screen) {
+                    $screen_option = $screen->get_option('per_page', 'option');
+                }
+            }
+
+            if (!is_string($screen_option) || '' === $screen_option) {
+                $screen_option = $option;
+            }
+
+            $value = get_user_option($screen_option);
+            if (false === $value) {
+                $value = $default;
+            }
+
+            $value = (int) $value;
+            if ($value < 1) {
+                $value = $default;
+            }
+
+            return $value;
         }
 
         /**
@@ -335,6 +381,8 @@ if (!class_exists('HR_CM_Admin_Table')) {
                     'filter' => 'cancelled',
                     'rank'   => 0,
                     'days'   => PHP_INT_MAX,
+                    'is_badge' => false,
+                    'badge_class' => '',
                 ];
             }
 
@@ -347,25 +395,31 @@ if (!class_exists('HR_CM_Admin_Table')) {
                     'filter' => 'paid',
                     'rank'   => 1,
                     'days'   => $days_sort,
+                    'is_badge' => false,
+                    'badge_class' => '',
                 ];
             }
 
-            $class = 'text-regular';
+            $class       = 'text-regular';
+            $text        = __('Balance Due', 'hr-customer-manager');
+            $is_badge    = false;
+            $badge_class = '';
 
-            if ($days_to_trip !== null) {
-                if ($days_to_trip < 60) {
-                    $class = 'text-danger';
-                } elseif ($days_to_trip <= 75) {
-                    $class = 'text-warn';
-                }
+            if ($days_to_trip !== null && $days_to_trip < 60) {
+                $text        = __('Overdue', 'hr-customer-manager');
+                $class       = '';
+                $is_badge    = true;
+                $badge_class = 'hrcm-badge hrcm-badge--danger';
             }
 
             return [
-                'text'   => __('Balance Due', 'hr-customer-manager'),
+                'text'   => $text,
                 'class'  => $class,
                 'filter' => 'due',
                 'rank'   => 2,
                 'days'   => $days_sort,
+                'is_badge' => $is_badge,
+                'badge_class' => $badge_class,
             ];
         }
 
@@ -382,6 +436,8 @@ if (!class_exists('HR_CM_Admin_Table')) {
                     'text'  => __('Not Received', 'hr-customer-manager'),
                     'class' => 'text-muted',
                     'rank'  => 3,
+                    'is_badge' => false,
+                    'badge_class' => '',
                 ];
             }
 
@@ -390,21 +446,19 @@ if (!class_exists('HR_CM_Admin_Table')) {
                     'text'  => __('Not Received', 'hr-customer-manager'),
                     'class' => 'text-regular',
                     'rank'  => 0,
-                ];
-            }
-
-            if ($days_to_trip >= 50) {
-                return [
-                    'text'  => __('Not Received', 'hr-customer-manager'),
-                    'class' => 'text-warn',
-                    'rank'  => 1,
+                    'is_badge' => false,
+                    'badge_class' => '',
                 ];
             }
 
             return [
-                'text'  => __('Not Received', 'hr-customer-manager'),
-                'class' => 'text-danger',
-                'rank'  => 2,
+                'text'       => ($days_to_trip < 50)
+                    ? __('Overdue', 'hr-customer-manager')
+                    : __('Not Received', 'hr-customer-manager'),
+                'class'      => ($days_to_trip < 50) ? '' : 'text-warn',
+                'rank'       => ($days_to_trip < 50) ? 2 : 1,
+                'is_badge'   => ($days_to_trip < 50),
+                'badge_class'=> ($days_to_trip < 50) ? 'hrcm-badge hrcm-badge--warn' : '',
             ];
         }
 
@@ -483,32 +537,132 @@ if (!class_exists('HR_CM_Admin_Table')) {
          * @return array
          */
         private function build_trip_options($rows) {
-            $options = [];
+            $timezone = wp_timezone();
+            $options  = [];
+
+            $published = $this->get_trip_id_map();
+            foreach ($published as $key => $data) {
+                $options[$key] = [
+                    'name'   => $data['name'],
+                    'source' => 'cpt',
+                    'dates'  => [],
+                ];
+            }
+
+            $booking_names = HR_CM_Data::get_all_booking_trip_names();
+            foreach ($booking_names as $name) {
+                $normalized = $this->normalize_trip_key($name);
+                if ('' === $normalized) {
+                    continue;
+                }
+
+                if (!isset($options[$normalized])) {
+                    $options[$normalized] = [
+                        'name'   => $name,
+                        'source' => 'booking',
+                        'dates'  => [],
+                    ];
+                }
+            }
+
+            $booking_dates = $this->collect_booking_departure_dates($rows, $timezone);
+            foreach ($booking_dates as $key => $data) {
+                if (!isset($options[$key])) {
+                    $options[$key] = [
+                        'name'   => $data['name'],
+                        'source' => 'bookings',
+                        'dates'  => [],
+                    ];
+                } elseif ('cpt' !== $options[$key]['source'] && '' !== $data['name'] && '' === $options[$key]['name']) {
+                    $options[$key]['name'] = $data['name'];
+                }
+
+                foreach ($data['dates'] as $date) {
+                    $options[$key]['dates'][$date] = $date;
+                }
+            }
+
+            foreach ($options as &$option) {
+                ksort($option['dates'], SORT_STRING);
+                $option['dates'] = array_values($option['dates']);
+            }
+            unset($option);
+
+            usort(
+                $options,
+                static function ($a, $b) {
+                    $name_a = isset($a['name']) ? $a['name'] : '';
+                    $name_b = isset($b['name']) ? $b['name'] : '';
+
+                    return strnatcasecmp($name_a, $name_b);
+                }
+            );
+
+            $final = [];
+            foreach ($options as $option) {
+                $label = isset($option['name']) ? $option['name'] : '';
+                if ('' === $label) {
+                    continue;
+                }
+
+                $final[$label] = [
+                    'name'  => $label,
+                    'dates' => isset($option['dates']) ? $option['dates'] : [],
+                ];
+            }
+
+            return $final;
+        }
+
+        /**
+         * Collect future departure dates from booking rows.
+         *
+         * @param array         $rows     Traveler rows.
+         * @param DateTimeZone  $timezone Site timezone.
+         *
+         * @return array
+         */
+        private function collect_booking_departure_dates($rows, DateTimeZone $timezone) {
+            $map = [];
 
             foreach ($rows as $row) {
-                $trip_name = $row['trip_name'];
-                if (!isset($options[$trip_name])) {
-                    $options[$trip_name] = [
+                $trip_name = isset($row['trip_name']) ? (string) $row['trip_name'] : '';
+                $key       = $this->normalize_trip_key($trip_name);
+
+                if ('' === $key) {
+                    continue;
+                }
+
+                if (!isset($map[$key])) {
+                    $map[$key] = [
                         'name'  => $trip_name,
                         'dates' => [],
                     ];
+                } elseif ('' === $map[$key]['name'] && '' !== $trip_name) {
+                    $map[$key]['name'] = $trip_name;
                 }
 
-                if ('' !== $row['departure_date']) {
-                    $options[$trip_name]['dates'][$row['departure_date']] = $row['departure_date'];
+                $date = isset($row['departure_date']) ? $row['departure_date'] : '';
+                $normalized = $this->parse_departure_value($date, $timezone);
+
+                if ('' === $normalized) {
+                    continue;
                 }
+
+                if (!$this->is_future_date($normalized, $timezone)) {
+                    continue;
+                }
+
+                $map[$key]['dates'][$normalized] = $normalized;
             }
 
-            ksort($options, SORT_NATURAL | SORT_FLAG_CASE);
-
-            foreach ($options as &$trip) {
-                $dates = $trip['dates'];
-                ksort($dates, SORT_NATURAL);
-                $trip['dates'] = array_values($dates);
+            foreach ($map as &$data) {
+                ksort($data['dates'], SORT_STRING);
+                $data['dates'] = array_values($data['dates']);
             }
-            unset($trip);
+            unset($data);
 
-            return $options;
+            return $map;
         }
 
         /**
@@ -770,16 +924,14 @@ if (!class_exists('HR_CM_Admin_Table')) {
          * @param array  $filters Filter values.
          * @param string $sort    Sort key.
          * @param string $dir     Sort direction.
-         * @param int    $per_page Items per page.
          *
          * @return array
          */
-        private function build_query_args($filters, $sort, $dir, $per_page) {
+        private function build_query_args($filters, $sort, $dir) {
             $args = [
                 'page'     => 'hr-customer-manager',
                 'sort'     => $sort,
                 'dir'      => $dir,
-                'per_page' => $per_page,
             ];
 
             if (isset($_GET['hr_cm_nonce'])) {
@@ -804,20 +956,87 @@ if (!class_exists('HR_CM_Admin_Table')) {
         }
 
         /**
-         * Create a simplified map of trips to departure dates.
-         *
-         * @param array $trip_options Trip options with date lists.
+         * Retrieve the column configuration used by the overview table.
          *
          * @return array
          */
-        private function build_trip_departure_map($trip_options) {
-            $map = [];
+        public static function get_column_config() {
+            return [
+                'traveler'   => [
+                    'label' => __('Traveler(s)', 'hr-customer-manager'),
+                    'sort'  => 'traveler',
+                ],
+                'booking'    => [
+                    'label' => __('Booking ID', 'hr-customer-manager'),
+                    'sort'  => 'booking',
+                ],
+                'trip'       => [
+                    'label' => __('Trip', 'hr-customer-manager'),
+                    'sort'  => 'trip',
+                ],
+                'departure'  => [
+                    'label' => __('Departure', 'hr-customer-manager'),
+                    'sort'  => 'departure',
+                ],
+                'days'       => [
+                    'label' => __('Days to Trip', 'hr-customer-manager'),
+                    'sort'  => 'days',
+                ],
+                'payment'    => [
+                    'label' => __('Payment Status', 'hr-customer-manager'),
+                    'sort'  => 'payment',
+                ],
+                'info'       => [
+                    'label' => __('Info received', 'hr-customer-manager'),
+                    'sort'  => 'info',
+                ],
+                'phase'      => [
+                    'label' => __('Current Phase', 'hr-customer-manager'),
+                    'sort'  => 'phase',
+                ],
+                'last_email' => [
+                    'label' => __('Last Email Sent', 'hr-customer-manager'),
+                    'sort'  => 'last_email',
+                ],
+                'resend'     => [
+                    'label' => __('Resend Email', 'hr-customer-manager'),
+                    'sort'  => 'resend',
+                ],
+            ];
+        }
 
-            foreach ($trip_options as $trip_name => $trip) {
-                $map[$trip_name] = isset($trip['dates']) ? $trip['dates'] : [];
+        /**
+         * Retrieve the available departures for a given trip.
+         *
+         * @param string     $trip_name Trip display name.
+         * @param array|null $rows      Optional pre-fetched rows.
+         *
+         * @return array
+         */
+        public function get_departures_for_trip($trip_name, $rows = null) {
+            $trip_name = trim((string) $trip_name);
+            if ('' === $trip_name) {
+                return [];
             }
 
-            return $map;
+            $timezone = wp_timezone();
+            $trip_ids = $this->get_trip_ids_by_name($trip_name);
+
+            foreach ($trip_ids as $trip_id) {
+                $dates = $this->fetch_departures_via_rest($trip_id, $timezone);
+                if (!empty($dates)) {
+                    return $dates;
+                }
+            }
+
+            foreach ($trip_ids as $trip_id) {
+                $dates = $this->fetch_departures_from_meta($trip_id, $timezone);
+                if (!empty($dates)) {
+                    return $dates;
+                }
+            }
+
+            return $this->fetch_departures_from_bookings($trip_name, $timezone, $rows);
         }
 
         /**
@@ -833,6 +1052,287 @@ if (!class_exists('HR_CM_Admin_Table')) {
             $normalized_b = strtolower(trim(wp_strip_all_tags((string) $b)));
 
             return $normalized_a === $normalized_b;
+        }
+
+        /**
+         * Get or build a map of normalized trip names to published trip IDs.
+         *
+         * @return array
+         */
+        private function get_trip_id_map() {
+            if (null !== self::$trip_id_cache) {
+                return self::$trip_id_cache;
+            }
+
+            $map   = [];
+            $posts = get_posts([
+                'post_type'      => 'trip',
+                'post_status'    => 'publish',
+                'posts_per_page' => -1,
+                'orderby'        => 'title',
+                'order'          => 'ASC',
+                'fields'         => 'ids',
+            ]);
+
+            if (is_array($posts)) {
+                foreach ($posts as $trip_id) {
+                    $name = get_the_title($trip_id);
+                    $name = trim((string) $name);
+
+                    if ('' === $name) {
+                        continue;
+                    }
+
+                    $key = $this->normalize_trip_key($name);
+                    if ('' === $key) {
+                        continue;
+                    }
+
+                    if (!isset($map[$key])) {
+                        $map[$key] = [
+                            'name' => $name,
+                            'ids'  => [],
+                        ];
+                    }
+
+                    $map[$key]['ids'][] = (int) $trip_id;
+                }
+            }
+
+            self::$trip_id_cache = $map;
+
+            return $map;
+        }
+
+        /**
+         * Get trip IDs for a provided trip name.
+         *
+         * @param string $trip_name Trip display name.
+         *
+         * @return array
+         */
+        private function get_trip_ids_by_name($trip_name) {
+            $key = $this->normalize_trip_key($trip_name);
+
+            if ('' === $key) {
+                return [];
+            }
+
+            $map = $this->get_trip_id_map();
+
+            if (!isset($map[$key]['ids']) || !is_array($map[$key]['ids'])) {
+                return [];
+            }
+
+            return array_map('intval', $map[$key]['ids']);
+        }
+
+        /**
+         * Normalize a trip name for consistent lookups.
+         *
+         * @param string $value Raw trip name.
+         *
+         * @return string
+         */
+        private function normalize_trip_key($value) {
+            $value = wp_strip_all_tags((string) $value);
+            $value = trim($value);
+
+            if ('' === $value) {
+                return '';
+            }
+
+            $value = preg_replace('/\s+/', ' ', $value);
+            $value = is_string($value) ? $value : '';
+
+            return strtolower($value);
+        }
+
+        /**
+         * Normalize a departure value into a Y-m-d string.
+         *
+         * @param mixed        $value    Raw value.
+         * @param DateTimeZone $timezone Site timezone.
+         *
+         * @return string
+         */
+        private function parse_departure_value($value, DateTimeZone $timezone) {
+            if (is_array($value)) {
+                $value = reset($value);
+            }
+
+            $value = trim((string) $value);
+
+            if ('' === $value) {
+                return '';
+            }
+
+            $date = DateTimeImmutable::createFromFormat('Y-m-d', $value, $timezone);
+            if (!$date) {
+                $date = date_create_immutable($value, $timezone);
+            }
+
+            if (!$date) {
+                return '';
+            }
+
+            return $date->format('Y-m-d');
+        }
+
+        /**
+         * Determine if a given Y-m-d string represents today or a future date.
+         *
+         * @param string       $date     Normalized date string.
+         * @param DateTimeZone $timezone Site timezone.
+         *
+         * @return bool
+         */
+        private function is_future_date($date, DateTimeZone $timezone) {
+            $target = DateTimeImmutable::createFromFormat('Y-m-d', $date, $timezone);
+            if (!$target) {
+                return false;
+            }
+
+            $target = $target->setTime(0, 0, 0);
+            $today  = new DateTimeImmutable('now', $timezone);
+            $today  = $today->setTime(0, 0, 0);
+
+            return $target >= $today;
+        }
+
+        /**
+         * Retrieve departures from the WP Travel Engine REST endpoint.
+         *
+         * @param int          $trip_id  Trip post ID.
+         * @param DateTimeZone $timezone Site timezone.
+         *
+         * @return array
+         */
+        private function fetch_departures_via_rest($trip_id, DateTimeZone $timezone) {
+            $trip_id = (int) $trip_id;
+            if ($trip_id <= 0) {
+                return [];
+            }
+
+            $response = wp_remote_get(
+                rest_url(sprintf('wptravelengine/v3/trips/%d/dates', $trip_id)),
+                [
+                    'timeout' => 10,
+                    'headers' => [
+                        'Accept' => 'application/json',
+                    ],
+                ]
+            );
+
+            if (is_wp_error($response)) {
+                return [];
+            }
+
+            $code = wp_remote_retrieve_response_code($response);
+            if ($code < 200 || $code >= 300) {
+                return [];
+            }
+
+            $body = wp_remote_retrieve_body($response);
+            if ('' === $body) {
+                return [];
+            }
+
+            $data = json_decode($body, true);
+            if (!is_array($data)) {
+                return [];
+            }
+
+            $dates = [];
+
+            foreach ($data as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+
+                foreach (['date', 'start', 'trip_date'] as $field) {
+                    if (empty($row[$field])) {
+                        continue;
+                    }
+
+                    $normalized = $this->parse_departure_value($row[$field], $timezone);
+                    if ('' === $normalized) {
+                        continue;
+                    }
+
+                    if (!$this->is_future_date($normalized, $timezone)) {
+                        continue;
+                    }
+
+                    $dates[$normalized] = $normalized;
+                }
+            }
+
+            ksort($dates, SORT_STRING);
+
+            return array_values($dates);
+        }
+
+        /**
+         * Retrieve departures from trip meta settings.
+         *
+         * @param int          $trip_id  Trip post ID.
+         * @param DateTimeZone $timezone Site timezone.
+         *
+         * @return array
+         */
+        private function fetch_departures_from_meta($trip_id, DateTimeZone $timezone) {
+            $settings = get_post_meta($trip_id, 'WTE_Fixed_Starting_Dates_setting', true);
+            if (!is_array($settings) || empty($settings['departure_dates']) || !is_array($settings['departure_dates'])) {
+                return [];
+            }
+
+            $dates = [];
+
+            foreach ($settings['departure_dates'] as $key => $raw) {
+                if (is_string($key) && preg_match('/^dates_\d+$/', $key)) {
+                    continue;
+                }
+
+                $normalized = $this->parse_departure_value($raw, $timezone);
+                if ('' === $normalized) {
+                    continue;
+                }
+
+                if (!$this->is_future_date($normalized, $timezone)) {
+                    continue;
+                }
+
+                $dates[$normalized] = $normalized;
+            }
+
+            ksort($dates, SORT_STRING);
+
+            return array_values($dates);
+        }
+
+        /**
+         * Retrieve departures from existing bookings as a fallback.
+         *
+         * @param string       $trip_name Trip display name.
+         * @param DateTimeZone $timezone  Site timezone.
+         * @param array|null   $rows      Optional pre-fetched rows.
+         *
+         * @return array
+         */
+        private function fetch_departures_from_bookings($trip_name, DateTimeZone $timezone, $rows = null) {
+            if (null === $rows) {
+                $rows = $this->get_all_rows();
+            }
+
+            $map = $this->collect_booking_departure_dates($rows, $timezone);
+            $key = $this->normalize_trip_key($trip_name);
+
+            if ('' === $key || !isset($map[$key]['dates'])) {
+                return [];
+            }
+
+            return $map[$key]['dates'];
         }
     }
 }
