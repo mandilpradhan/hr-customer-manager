@@ -142,6 +142,11 @@ if (!class_exists('HR_CM_Data')) {
         public static function get_trip($booking_id) {
             $place_order = self::get_place_order($booking_id);
 
+            $trip_id = 0;
+            if (isset($place_order['tid'])) {
+                $trip_id = (int) $place_order['tid'];
+            }
+
             $trip_name = '';
             if (isset($place_order['tname'])) {
                 $trip_name = sanitize_text_field($place_order['tname']);
@@ -155,6 +160,15 @@ if (!class_exists('HR_CM_Data')) {
                     foreach ($order_trips as $trip) {
                         if (is_array($trip) && isset($trip['title'])) {
                             $trip_name = sanitize_text_field($trip['title']);
+                            if ($trip_id <= 0 && isset($trip['id'])) {
+                                $trip_id = (int) $trip['id'];
+                            }
+                            if ($trip_id <= 0 && isset($trip['trip_id'])) {
+                                $trip_id = (int) $trip['trip_id'];
+                            }
+                            if ($trip_id <= 0 && isset($trip['tid'])) {
+                                $trip_id = (int) $trip['tid'];
+                            }
                             if ('' !== $trip_name) {
                                 break;
                             }
@@ -206,6 +220,7 @@ if (!class_exists('HR_CM_Data')) {
             $date = self::normalize_date($date);
 
             return [
+                'id'   => $trip_id,
                 'name' => $trip_name,
                 'date' => $date,
             ];
