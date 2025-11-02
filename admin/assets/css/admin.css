@@ -1,0 +1,218 @@
+:root {
+    --hr-cm-color-primary: #ffc700;
+    --hr-cm-color-primary-hover: #e5b200;
+    --hr-cm-color-secondary: #5cc6d6;
+    --hr-cm-color-paid: #1f9d55;
+    --hr-cm-color-due: #f0ad4e;
+    --hr-cm-color-muted: #6c7781;
+    --hr-cm-spacing: 16px;
+    --hr-cm-border-radius: 6px;
+}
+
+.hr-cm-admin {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    color: #1d2327;
+}
+
+.hr-cm-filters {
+    margin-top: 1rem;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: var(--hr-cm-border-radius);
+    padding: var(--hr-cm-spacing);
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.hr-cm-filters__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--hr-cm-spacing);
+    align-items: flex-end;
+}
+
+.hr-cm-filter label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.hr-cm-filter select,
+.hr-cm-filter input[type="search"] {
+    min-width: 180px;
+}
+
+.hr-cm-filter--search input[type="search"] {
+    min-width: 240px;
+}
+
+.hr-cm-filter--actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.hr-cm-sync.button[disabled] {
+    background: var(--hr-cm-color-secondary);
+    border-color: var(--hr-cm-color-secondary);
+    color: #fff;
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.hr-cm-sync.button[disabled]:hover {
+    background: var(--hr-cm-color-secondary);
+    border-color: var(--hr-cm-color-secondary);
+}
+
+.table-fullwidth {
+    width: 100%;
+    position: relative;
+}
+
+.table-fullwidth thead th {
+    position: sticky;
+    top: 0;
+    background: #f6f7f7;
+    z-index: 1;
+}
+
+.hr-cm-table-wrapper {
+    overflow-x: auto;
+    margin-top: var(--hr-cm-spacing);
+}
+
+.hr-cm-table td,
+.hr-cm-table th {
+    vertical-align: top;
+}
+
+.hr-cm-traveler strong {
+    display: block;
+    font-size: 14px;
+}
+
+.hr-cm-email,
+.hr-cm-muted {
+    color: var(--hr-cm-color-muted);
+    display: inline-block;
+    margin-top: 2px;
+    font-size: 13px;
+}
+
+.hr-cm-lead {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed #dcdcde;
+    color: var(--hr-cm-color-muted);
+    font-size: 13px;
+}
+
+.hr-cm-lead .hr-cm-label {
+    font-weight: 600;
+    margin-right: 4px;
+    color: #1d2327;
+}
+
+.hr-cm-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 12px;
+    color: #fff;
+}
+
+.hr-cm-badge.paid {
+    background: var(--hr-cm-color-paid);
+}
+
+.hr-cm-badge.due {
+    background: var(--hr-cm-color-primary);
+    color: #3a2a00;
+}
+
+.hr-cm-empty {
+    text-align: center;
+    font-style: italic;
+    color: var(--hr-cm-color-muted);
+}
+
+.hr-cm-email-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.hr-cm-email-form select {
+    min-width: 220px;
+}
+
+.hr-cm-email-send.button-secondary {
+    background: var(--hr-cm-color-primary);
+    border-color: var(--hr-cm-color-primary);
+    color: #3a2a00;
+}
+
+.hr-cm-email-send.button-secondary:hover {
+    background: var(--hr-cm-color-primary-hover);
+    border-color: var(--hr-cm-color-primary-hover);
+    color: #3a2a00;
+}
+
+.hr-cm-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #1d2327;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: var(--hr-cm-border-radius);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.hr-cm-toast.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@media (max-width: 960px) {
+    .hr-cm-email-form {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hr-cm-email-form select {
+        width: 100%;
+    }
+}
+
+@media (max-width: 782px) {
+    .hr-cm-filters__row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hr-cm-filter select,
+    .hr-cm-filter input[type="search"] {
+        width: 100%;
+    }
+}
+
+/* Smooth scrollbar */
+.hr-cm-table-wrapper::-webkit-scrollbar {
+    height: 10px;
+}
+
+.hr-cm-table-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(29, 35, 39, 0.2);
+    border-radius: 999px;
+}
+
+.hr-cm-table-wrapper::-webkit-scrollbar-track {
+    background: rgba(29, 35, 39, 0.05);
+    border-radius: 999px;
+}
