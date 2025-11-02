@@ -89,23 +89,27 @@ $column_state = static function ($column_key) use ($columns_config, $sort, $dir)
     $config    = isset($columns_config[$column_key]) ? $columns_config[$column_key] : [];
     $sort_key  = isset($config['sort']) ? $config['sort'] : $column_key;
     $is_active = ($sort_key === $sort);
-    $icon      = 'dashicons dashicons-sort';
     $aria      = 'none';
+    $direction = 'asc';
 
     if ($is_active) {
-        if ('asc' === $dir) {
-            $icon = 'dashicons dashicons-arrow-up-alt2';
-            $aria = 'ascending';
-        } else {
-            $icon = 'dashicons dashicons-arrow-down-alt2';
-            $aria = 'descending';
-        }
+        $aria      = ('asc' === $dir) ? 'ascending' : 'descending';
+        $direction = $dir;
+    }
+
+    $next_direction = 'asc';
+    if ($is_active && 'asc' === $dir) {
+        $next_direction = 'desc';
+    } elseif ($is_active && 'desc' === $dir) {
+        $next_direction = 'asc';
     }
 
     return [
-        'aria' => $aria,
-        'icon' => $icon,
-        'sort' => $sort_key,
+        'aria'           => $aria,
+        'sort'           => $sort_key,
+        'is_active'      => $is_active,
+        'direction'      => $direction,
+        'next_direction' => $next_direction,
     ];
 };
 ?>
@@ -171,7 +175,7 @@ $column_state = static function ($column_key) use ($columns_config, $sort, $dir)
     </form>
 
     <div class="hr-cm-table-wrapper hrcm-table-wrap">
-        <table class="wp-list-table widefat fixed striped table-view-list hrcm-table">
+        <table class="wp-list-table widefat fixed striped hrcm-table">
             <thead>
                 <tr>
                     <?php foreach ($columns_config as $column_key => $column_settings) : ?>
@@ -179,16 +183,43 @@ $column_state = static function ($column_key) use ($columns_config, $sort, $dir)
                         <?php
                         $state    = $column_state($column_key);
                         $label    = isset($column_settings['label']) ? $column_settings['label'] : $column_key;
-                        $th_class = ['column-' . $column_key, 'hrcm-col', 'hrcm-col--' . $column_key, 'hrcm-th'];
+                        $th_class = ['manage-column', 'column-' . $column_key, 'hrcm-col', 'hrcm-col--' . $column_key];
+                        if ($state['is_active']) {
+                            $th_class[] = 'sorted';
+                            $th_class[] = $state['direction'];
+                        } else {
+                            $th_class[] = 'sortable';
+                            $th_class[] = $state['direction'];
+                        }
+                        if ('traveler' === $column_key) {
+                            $th_class[] = 'column-primary';
+                        }
                         if ('resend_email' === $column_key) {
                             $th_class[] = 'resend-col';
                         }
+
+                        $sort_url = add_query_arg(
+                            [
+                                'sort'  => $state['sort'],
+                                'dir'   => $state['next_direction'],
+                                'paged' => 1,
+                            ],
+                            $base_url
+                        );
+
+                        $direction_text = ('asc' === $state['next_direction']) ? __('ascending', 'hr-customer-manager') : __('descending', 'hr-customer-manager');
+                        $aria_label     = sprintf(
+                            /* translators: 1: Column label, 2: next sort direction. */
+                            __('Sort by %1$s in %2$s order', 'hr-customer-manager'),
+                            $label,
+                            $direction_text
+                        );
                         ?>
-                        <th scope="col" class="<?php echo esc_attr(implode(' ', $th_class)); ?>" data-sort="<?php echo esc_attr($state['sort']); ?>" aria-sort="<?php echo esc_attr($state['aria']); ?>">
-                            <?php echo esc_html($label); ?>
-                            <?php if (!empty($state['icon'])) : ?>
-                                <span class="sort-ind <?php echo esc_attr($state['icon']); ?>" aria-hidden="true"></span>
-                            <?php endif; ?>
+                        <th scope="col" class="<?php echo esc_attr(implode(' ', $th_class)); ?>" data-sort="<?php echo esc_attr($state['sort']); ?>" data-direction="<?php echo esc_attr($state['direction']); ?>" data-next-direction="<?php echo esc_attr($state['next_direction']); ?>" aria-sort="<?php echo esc_attr($state['aria']); ?>">
+                            <a href="<?php echo esc_url($sort_url); ?>" aria-label="<?php echo esc_attr($aria_label); ?>">
+                                <span><?php echo esc_html($label); ?></span>
+                                <span class="sorting-indicator" aria-hidden="true"></span>
+                            </a>
                         </th>
                     <?php endforeach; ?>
                 </tr>
@@ -223,6 +254,9 @@ $column_state = static function ($column_key) use ($columns_config, $sort, $dir)
                                 $cell_classes = ['column-' . $column_key, 'hrcm-col', 'hrcm-col--' . $column_key];
                                 if ('booking_id' === $column_key) {
                                     $cell_classes[] = 'hrcm-booking-id';
+                                }
+                                if ('traveler' === $column_key) {
+                                    $cell_classes[] = 'column-primary';
                                 }
                                 if ('resend_email' === $column_key) {
                                     $cell_classes[] = 'resend-col';

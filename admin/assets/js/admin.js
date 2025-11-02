@@ -173,27 +173,5 @@
             $(this).closest('.hrcm-inline-notice').remove();
         });
 
-        $('th.hrcm-th').on('click', function () {
-            var sortKey = $(this).data('sort');
-            if (!sortKey) {
-                return;
-            }
-
-            var url = new URL(window.location.href);
-            var currentSort = url.searchParams.get('sort') || state.sort || '';
-            var currentDir = (url.searchParams.get('dir') || state.dir || 'asc').toLowerCase();
-            var nextDir = 'asc';
-
-            if (currentSort === sortKey) {
-                nextDir = currentDir === 'asc' ? 'desc' : 'asc';
-            }
-
-            url.searchParams.set('sort', sortKey);
-            url.searchParams.set('dir', nextDir);
-            url.searchParams.set('paged', '1');
-
-            window.location.href = url.toString();
-        });
-
     });
 })(jQuery);
