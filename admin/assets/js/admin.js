@@ -3,6 +3,7 @@
 
     var state = window.hrcmState || {};
     var tripDeps = window.hrcmTripDeps || {};
+    var pendingTrips = {};
 
     function showToast(message) {
         var toast = $('.hr-cm-toast');
@@ -70,16 +71,78 @@
         }
     }
 
+    function fetchTripDepartures(tripName, selectedValue) {
+        if (!tripName) {
+            rebuildDepartureOptions('', selectedValue);
+            return;
+        }
+
+        if (pendingTrips[tripName]) {
+            return;
+        }
+
+        pendingTrips[tripName] = true;
+
+        var ajaxUrl = (window.hrCmAdmin && hrCmAdmin.ajaxUrl) ? hrCmAdmin.ajaxUrl : (typeof ajaxurl !== 'undefined' ? ajaxurl : '');
+        var nonce = (window.hrCmAdmin && hrCmAdmin.departuresNonce) ? hrCmAdmin.departuresNonce : '';
+
+        if (!ajaxUrl) {
+            pendingTrips[tripName] = false;
+            rebuildDepartureOptions(tripName, selectedValue);
+            return;
+        }
+
+        $.ajax({
+            url: ajaxUrl,
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'hrcm_get_departures',
+                trip: tripName,
+                _ajax_nonce: nonce
+            }
+        }).done(function (response) {
+            var dates = [];
+
+            if (response && response.success && $.isArray(response.data)) {
+                dates = response.data;
+            } else if (response && $.isArray(response.data)) {
+                dates = response.data;
+            }
+
+            tripDeps[tripName] = dates;
+        }).fail(function () {
+            tripDeps[tripName] = tripDeps[tripName] || [];
+        }).always(function () {
+            pendingTrips[tripName] = false;
+            rebuildDepartureOptions(tripName, selectedValue);
+        });
+    }
+
+    function loadTripDepartures(tripName, selectedValue) {
+        if (!tripName) {
+            rebuildDepartureOptions('', selectedValue);
+            return;
+        }
+
+        if (tripDeps[tripName]) {
+            rebuildDepartureOptions(tripName, selectedValue);
+            return;
+        }
+
+        fetchTripDepartures(tripName, selectedValue);
+    }
+
     $(function () {
         var tripSelect = $('#hr-cm-trip');
         var departureSelect = $('#hr-cm-departure');
         var initialDeparture = departureSelect.data('selected') || '';
 
         if (tripSelect.length && departureSelect.length) {
-            rebuildDepartureOptions(tripSelect.val(), initialDeparture);
+            loadTripDepartures(tripSelect.val(), initialDeparture);
 
             tripSelect.on('change', function () {
-                rebuildDepartureOptions($(this).val(), '');
+                loadTripDepartures($(this).val(), '');
             });
         }
 
@@ -132,12 +195,5 @@
             window.location.href = url.toString();
         });
 
-        $('#hrcm-per-page').on('change', function () {
-            var perPage = $(this).val();
-            var url = new URL(window.location.href);
-            url.searchParams.set('per_page', perPage);
-            url.searchParams.set('paged', '1');
-            window.location.href = url.toString();
-        });
     });
 })(jQuery);

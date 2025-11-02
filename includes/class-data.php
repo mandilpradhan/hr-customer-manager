@@ -238,6 +238,68 @@ if (!class_exists('HR_CM_Data')) {
         }
 
         /**
+         * Retrieve all distinct trip names stored within booking settings.
+         *
+         * @return array
+         */
+        public static function get_all_booking_trip_names() {
+            global $wpdb;
+
+            $meta_key = 'wp_travel_engine_booking_setting';
+            $table    = $wpdb->postmeta;
+
+            $results = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT meta_value FROM {$table} WHERE meta_key = %s",
+                    $meta_key
+                )
+            );
+
+            if (empty($results)) {
+                return [];
+            }
+
+            $names = [];
+
+            foreach ($results as $value) {
+                $parsed = self::parse_meta_value($value);
+                if (!is_array($parsed)) {
+                    continue;
+                }
+
+                $place_order = isset($parsed['place_order']) && is_array($parsed['place_order'])
+                    ? $parsed['place_order']
+                    : [];
+
+                if (empty($place_order['tname'])) {
+                    continue;
+                }
+
+                $name = sanitize_text_field($place_order['tname']);
+                if ('' === $name) {
+                    continue;
+                }
+
+                $names[] = $name;
+            }
+
+            if (empty($names)) {
+                return [];
+            }
+
+            $names = array_values(array_unique($names, SORT_STRING));
+
+            usort(
+                $names,
+                static function ($a, $b) {
+                    return strnatcasecmp($a, $b);
+                }
+            );
+
+            return $names;
+        }
+
+        /**
          * Calculate the number of days until a trip date.
          *
          * @param string       $yyyy_mm_dd Trip date string.
