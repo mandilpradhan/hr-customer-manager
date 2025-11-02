@@ -67,25 +67,27 @@
 }
 
 .hr-cm-table-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
     margin-top: var(--hr-cm-spacing);
     width: 100%;
     max-width: 100%;
 }
 
+.hrcm-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 .hrcm-table {
     width: 100%;
-    table-layout: fixed;
+    table-layout: auto;
     border-collapse: collapse;
-    min-width: 960px;
 }
 
 .hrcm-table thead th {
     position: sticky;
     top: 0;
     background: #f6f7f7;
-    z-index: 1;
+    z-index: 2;
 }
 
 .hrcm-table th,
@@ -97,9 +99,39 @@
     min-width: 0;
 }
 
-.hrcm-table th.resend-col,
-.hrcm-table td.resend-col {
-    width: 280px;
+.hrcm-table th.column-traveler,
+.hrcm-table td.column-traveler {
+    position: sticky;
+    left: 0;
+}
+
+.hrcm-table th.column-traveler {
+    z-index: 3;
+    background: #f6f7f7;
+}
+
+.hrcm-table td.column-traveler {
+    z-index: 1;
+    background: inherit;
+}
+
+.hrcm-col--booking_id,
+.hrcm-col--departure,
+.hrcm-col--days_to_trip,
+.hrcm-col--payment_status,
+.hrcm-col--info_received,
+.hrcm-col--last_email_sent {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.hrcm-col--traveler,
+.hrcm-col--trip,
+.hrcm-col--current_phase,
+.hrcm-col--resend_email {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
 }
 
 .hr-cm-muted {
@@ -155,7 +187,7 @@
 .hrcm-resend {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    gap: 8px;
 }
 
 .hrcm-resend-select {
@@ -165,9 +197,7 @@
 }
 
 .hrcm-resend-btn {
-    display: inline-block;
-    margin-top: 8px;
-    margin-left: 8px;
+    align-self: flex-start;
 }
 
 .hrcm-resend-btn:hover {
@@ -194,12 +224,16 @@
     filter: brightness(0.95);
 }
 
-.hrcm-badge {
+.hrcm-badge,
+.hrcm-badge--danger,
+.hrcm-badge--warn {
     display: inline-block;
     padding: 3px 8px;
     border-radius: 3px;
-    color: #fff;
+    font-size: 12px;
     line-height: 1.3;
+    white-space: nowrap;
+    color: #fff;
 }
 
 .hrcm-badge--danger {
@@ -230,15 +264,43 @@
     transform: translateY(0);
 }
 
-@media (max-width: 960px) {
-    .hrcm-table {
-        min-width: 720px;
+@media screen and (max-width: 1280px) {
+    .hrcm-col--booking_id,
+    .hrcm-col--departure,
+    .hrcm-col--days_to_trip,
+    .hrcm-col--payment_status,
+    .hrcm-col--info_received,
+    .hrcm-col--last_email_sent {
+        width: 1%;
+        white-space: nowrap;
+    }
+
+    .hrcm-resend select {
+        min-width: 180px;
     }
 }
 
-@media (max-width: 782px) {
+@media screen and (max-width: 782px) {
+    .hrcm-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
     .hrcm-table {
-        min-width: 600px;
+        min-width: 980px;
+    }
+
+    .hrcm-table th,
+    .hrcm-table td {
+        padding: 4px 6px;
+    }
+
+    .hrcm-resend {
+        flex-direction: column;
+    }
+
+    .hrcm-resend .button {
+        width: 100%;
     }
 
     .hr-cm-filters__row {

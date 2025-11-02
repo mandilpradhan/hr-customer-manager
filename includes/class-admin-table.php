@@ -311,6 +311,7 @@ if (!class_exists('HR_CM_Admin_Table')) {
                 'lead_name'           => $lead_exists ? $lead_name : '',
                 'lead_email'          => $lead_exists ? $lead_email : '',
                 'show_lead'           => $lead_exists && $lead_differs,
+                'trip_id'             => isset($context['trip']['id']) ? (int) $context['trip']['id'] : 0,
                 'trip_name'           => $context['trip']['name'],
                 'departure_date'      => $context['trip']['date'],
                 'departure_ts'        => $context['departure_ts'],
@@ -546,6 +547,7 @@ if (!class_exists('HR_CM_Admin_Table')) {
                     'name'   => $data['name'],
                     'source' => 'cpt',
                     'dates'  => [],
+                    'ids'    => isset($data['ids']) ? array_values(array_map('intval', (array) $data['ids'])) : [],
                 ];
             }
 
@@ -561,6 +563,7 @@ if (!class_exists('HR_CM_Admin_Table')) {
                         'name'   => $name,
                         'source' => 'booking',
                         'dates'  => [],
+                        'ids'    => [],
                     ];
                 }
             }
@@ -572,6 +575,7 @@ if (!class_exists('HR_CM_Admin_Table')) {
                         'name'   => $data['name'],
                         'source' => 'bookings',
                         'dates'  => [],
+                        'ids'    => [],
                     ];
                 } elseif ('cpt' !== $options[$key]['source'] && '' !== $data['name'] && '' === $options[$key]['name']) {
                     $options[$key]['name'] = $data['name'];
@@ -580,11 +584,23 @@ if (!class_exists('HR_CM_Admin_Table')) {
                 foreach ($data['dates'] as $date) {
                     $options[$key]['dates'][$date] = $date;
                 }
+
+                if (isset($data['ids'])) {
+                    foreach ((array) $data['ids'] as $trip_id) {
+                        $options[$key]['ids'][(int) $trip_id] = (int) $trip_id;
+                    }
+                }
             }
 
             foreach ($options as &$option) {
                 ksort($option['dates'], SORT_STRING);
                 $option['dates'] = array_values($option['dates']);
+
+                if (isset($option['ids']) && is_array($option['ids'])) {
+                    $option['ids'] = array_values(array_unique(array_map('intval', $option['ids'])));
+                } else {
+                    $option['ids'] = [];
+                }
             }
             unset($option);
 
@@ -608,6 +624,7 @@ if (!class_exists('HR_CM_Admin_Table')) {
                 $final[$label] = [
                     'name'  => $label,
                     'dates' => isset($option['dates']) ? $option['dates'] : [],
+                    'ids'   => isset($option['ids']) ? $option['ids'] : [],
                 ];
             }
 
@@ -637,9 +654,19 @@ if (!class_exists('HR_CM_Admin_Table')) {
                     $map[$key] = [
                         'name'  => $trip_name,
                         'dates' => [],
+                        'ids'   => [],
                     ];
                 } elseif ('' === $map[$key]['name'] && '' !== $trip_name) {
                     $map[$key]['name'] = $trip_name;
+                }
+
+                if (!isset($map[$key]['ids'])) {
+                    $map[$key]['ids'] = [];
+                }
+
+                $trip_id = isset($row['trip_id']) ? (int) $row['trip_id'] : 0;
+                if ($trip_id > 0) {
+                    $map[$key]['ids'][$trip_id] = $trip_id;
                 }
 
                 $date = isset($row['departure_date']) ? $row['departure_date'] : '';
@@ -659,6 +686,12 @@ if (!class_exists('HR_CM_Admin_Table')) {
             foreach ($map as &$data) {
                 ksort($data['dates'], SORT_STRING);
                 $data['dates'] = array_values($data['dates']);
+
+                if (isset($data['ids']) && is_array($data['ids'])) {
+                    $data['ids'] = array_values(array_unique(array_map('intval', $data['ids'])));
+                } else {
+                    $data['ids'] = [];
+                }
             }
             unset($data);
 
@@ -791,17 +824,16 @@ if (!class_exists('HR_CM_Admin_Table')) {
          */
         private function get_sortable_map() {
             return [
-                'traveler'  => 'traveler_name',
-                'email'     => 'traveler_email',
-                'booking'   => 'booking_id',
-                'trip'      => 'trip_name',
-                'departure' => 'departure_ts',
-                'days'      => 'days_to_trip_sort',
-                'payment'   => 'payment_status_rank',
-                'info'      => 'info_rank',
-                'phase'     => 'phase_rank',
-                'last_email'=> 'last_email_sent_ts',
-                'resend'    => 'resend_rank',
+                'traveler'        => 'traveler_name',
+                'booking_id'      => 'booking_id',
+                'trip'            => 'trip_name',
+                'departure'       => 'departure_ts',
+                'days_to_trip'    => 'days_to_trip_sort',
+                'payment_status'  => 'payment_status_rank',
+                'info_received'   => 'info_rank',
+                'current_phase'   => 'phase_rank',
+                'last_email_sent' => 'last_email_sent_ts',
+                'resend_email'    => 'resend_rank',
             ];
         }
 
@@ -962,45 +994,45 @@ if (!class_exists('HR_CM_Admin_Table')) {
          */
         public static function get_column_config() {
             return [
-                'traveler'   => [
+                'traveler'        => [
                     'label' => __('Traveler(s)', 'hr-customer-manager'),
                     'sort'  => 'traveler',
                 ],
-                'booking'    => [
+                'booking_id'      => [
                     'label' => __('Booking ID', 'hr-customer-manager'),
-                    'sort'  => 'booking',
+                    'sort'  => 'booking_id',
                 ],
-                'trip'       => [
+                'trip'            => [
                     'label' => __('Trip', 'hr-customer-manager'),
                     'sort'  => 'trip',
                 ],
-                'departure'  => [
+                'departure'       => [
                     'label' => __('Departure', 'hr-customer-manager'),
                     'sort'  => 'departure',
                 ],
-                'days'       => [
+                'days_to_trip'    => [
                     'label' => __('Days to Trip', 'hr-customer-manager'),
-                    'sort'  => 'days',
+                    'sort'  => 'days_to_trip',
                 ],
-                'payment'    => [
+                'payment_status'  => [
                     'label' => __('Payment Status', 'hr-customer-manager'),
-                    'sort'  => 'payment',
+                    'sort'  => 'payment_status',
                 ],
-                'info'       => [
+                'info_received'   => [
                     'label' => __('Info received', 'hr-customer-manager'),
-                    'sort'  => 'info',
+                    'sort'  => 'info_received',
                 ],
-                'phase'      => [
+                'current_phase'   => [
                     'label' => __('Current Phase', 'hr-customer-manager'),
-                    'sort'  => 'phase',
+                    'sort'  => 'current_phase',
                 ],
-                'last_email' => [
+                'last_email_sent' => [
                     'label' => __('Last Email Sent', 'hr-customer-manager'),
-                    'sort'  => 'last_email',
+                    'sort'  => 'last_email_sent',
                 ],
-                'resend'     => [
+                'resend_email'    => [
                     'label' => __('Resend Email', 'hr-customer-manager'),
-                    'sort'  => 'resend',
+                    'sort'  => 'resend_email',
                 ],
             ];
         }
@@ -1020,7 +1052,16 @@ if (!class_exists('HR_CM_Admin_Table')) {
             }
 
             $timezone = wp_timezone();
-            $trip_ids = $this->get_trip_ids_by_name($trip_name);
+
+            $dates = $this->fetch_departures_from_bookings($trip_name, $timezone, $rows);
+            if (!empty($dates)) {
+                return $dates;
+            }
+
+            $trip_ids = $this->collect_trip_ids_for_name($trip_name, $rows);
+            if (empty($trip_ids)) {
+                $trip_ids = $this->get_trip_ids_by_name($trip_name);
+            }
 
             foreach ($trip_ids as $trip_id) {
                 $dates = $this->fetch_departures_via_rest($trip_id, $timezone);
@@ -1036,7 +1077,59 @@ if (!class_exists('HR_CM_Admin_Table')) {
                 }
             }
 
-            return $this->fetch_departures_from_bookings($trip_name, $timezone, $rows);
+            return [];
+        }
+
+        /**
+         * Collect unique trip IDs for the provided trip name from existing rows.
+         *
+         * @param string     $trip_name Trip display name.
+         * @param array|null $rows      Optional pre-fetched rows.
+         *
+         * @return array
+         */
+        private function collect_trip_ids_for_name($trip_name, $rows = null) {
+            $trip_name = trim((string) $trip_name);
+            if ('' === $trip_name) {
+                return [];
+            }
+
+            if (null === $rows) {
+                $rows = $this->get_all_rows();
+            }
+
+            if (!is_array($rows) || empty($rows)) {
+                return [];
+            }
+
+            $key = $this->normalize_trip_key($trip_name);
+            if ('' === $key) {
+                return [];
+            }
+
+            $ids = [];
+
+            foreach ($rows as $row) {
+                $row_name = isset($row['trip_name']) ? (string) $row['trip_name'] : '';
+                $row_key  = $this->normalize_trip_key($row_name);
+
+                if ('' === $row_key || $row_key !== $key) {
+                    continue;
+                }
+
+                if (isset($row['trip_id'])) {
+                    $trip_id = (int) $row['trip_id'];
+                    if ($trip_id > 0) {
+                        $ids[$trip_id] = $trip_id;
+                    }
+                }
+            }
+
+            if (empty($ids)) {
+                return [];
+            }
+
+            return array_values($ids);
         }
 
         /**
