@@ -98,10 +98,12 @@ $bookings = isset($data['bookings']) ? $data['bookings'] : [];
             <thead>
                 <tr>
                     <th scope="col"><?php esc_html_e('Traveler(s)', 'hr-customer-manager'); ?></th>
+                    <th scope="col"><?php esc_html_e('Booking ID', 'hr-customer-manager'); ?></th>
                     <th scope="col"><?php esc_html_e('Trip Name', 'hr-customer-manager'); ?></th>
                     <th scope="col"><?php esc_html_e('Departure Date', 'hr-customer-manager'); ?></th>
                     <th scope="col"><?php esc_html_e('Days to Trip', 'hr-customer-manager'); ?></th>
                     <th scope="col"><?php esc_html_e('Payment Status', 'hr-customer-manager'); ?></th>
+                    <th scope="col"><?php esc_html_e('Manifest Received', 'hr-customer-manager'); ?></th>
                     <th scope="col"><?php esc_html_e('Current Phase', 'hr-customer-manager'); ?></th>
                     <th scope="col"><?php esc_html_e('Last Email Sent', 'hr-customer-manager'); ?></th>
                     <th scope="col"><?php esc_html_e('Resend Email', 'hr-customer-manager'); ?></th>
@@ -110,7 +112,7 @@ $bookings = isset($data['bookings']) ? $data['bookings'] : [];
             <tbody>
                 <?php if (empty($bookings)) : ?>
                     <tr>
-                        <td colspan="8" class="hr-cm-empty">
+                        <td colspan="10" class="hr-cm-empty">
                             <?php esc_html_e('No bookings found.', 'hr-customer-manager'); ?>
                         </td>
                     </tr>
@@ -130,6 +132,7 @@ $bookings = isset($data['bookings']) ? $data['bookings'] : [];
                                     </div>
                                 <?php endif; ?>
                             </td>
+                            <td class="hr-cm-booking-id">#<?php echo esc_html($booking['booking_id']); ?></td>
                             <td><?php echo esc_html($booking['trip_name']); ?></td>
                             <td><?php echo esc_html($booking['departure_date']); ?></td>
                             <td>
@@ -142,9 +145,22 @@ $bookings = isset($data['bookings']) ? $data['bookings'] : [];
                                 ?>
                             </td>
                             <td>
-                                <span class="hr-cm-badge badge <?php echo esc_attr($booking['payment_status']); ?>">
-                                    <?php echo esc_html($booking['payment_label']); ?>
-                                </span>
+                                <?php if (!empty($booking['payment_badge']['show_badge'])) : ?>
+                                    <span class="hr-cm-badge badge <?php echo esc_attr($booking['payment_badge']['class']); ?>">
+                                        <?php echo esc_html($booking['payment_badge']['label']); ?>
+                                    </span>
+                                <?php else : ?>
+                                    <span class="hr-cm-status-text"><?php echo esc_html($booking['payment_badge']['label']); ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if (!empty($booking['manifest_status']['show_badge'])) : ?>
+                                    <span class="hr-cm-badge badge <?php echo esc_attr($booking['manifest_status']['class']); ?>">
+                                        <?php echo esc_html($booking['manifest_status']['label']); ?>
+                                    </span>
+                                <?php else : ?>
+                                    <span class="hr-cm-status-text"><?php echo esc_html($booking['manifest_status']['label']); ?></span>
+                                <?php endif; ?>
                             </td>
                             <td><?php echo esc_html($booking['phase_label']); ?></td>
                             <td class="hr-cm-muted">&mdash;</td>

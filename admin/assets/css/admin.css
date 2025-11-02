@@ -66,7 +66,9 @@
 
 .table-fullwidth {
     width: 100%;
+    max-width: 100%;
     position: relative;
+    table-layout: auto;
 }
 
 .table-fullwidth thead th {
@@ -79,6 +81,8 @@
 .hr-cm-table-wrapper {
     overflow-x: auto;
     margin-top: var(--hr-cm-spacing);
+    width: 100%;
+    max-width: 100%;
 }
 
 .hr-cm-table td,
@@ -129,6 +133,23 @@
 .hr-cm-badge.due {
     background: var(--hr-cm-color-primary);
     color: #3a2a00;
+}
+
+.hr-cm-badge.due-critical {
+    background: #d63638;
+}
+
+.hr-cm-status-text {
+    font-weight: 600;
+    font-size: 12px;
+    color: #1d2327;
+    display: inline-block;
+    padding: 4px 0;
+}
+
+.hr-cm-booking-id {
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 .hr-cm-empty {
