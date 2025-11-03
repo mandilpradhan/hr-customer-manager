@@ -6,9 +6,12 @@
 ✅ Filters + central UI  
 
 ## Stage 2 (Q1 2026)
-- n8n email webhook  
-- Journey log writes  
-- Customer summary cards  
+- n8n email webhook
+- Journey log writes
+- Customer summary cards
+- Observability & audit logging for automation executions
+- Retry & backoff strategies for failed automations
+- Additional outbound actions (internal email, WP hook dispatch, HubSpot/n8n presets)
 
 ## Stage 3 (Q2 2026)
 - Scheduled automation + reminders  

@@ -1,0 +1,70 @@
+.hrcm-automation-admin .hrcm-metabox {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.hrcm-automation-admin .hrcm-field-group {
+    margin-bottom: 20px;
+}
+
+.hrcm-automation-admin .hrcm-field-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.hrcm-automation-admin .hrcm-condition-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #e2e4e7;
+    background: #f6f7f7;
+}
+
+.hrcm-automation-admin .hrcm-condition-row select,
+.hrcm-automation-admin .hrcm-condition-row input {
+    min-width: 140px;
+}
+
+.hrcm-automation-admin .hrcm-condition-value .regular-text {
+    min-width: 200px;
+}
+
+.hrcm-automation-admin .hrcm-condition-value .small-text {
+    width: 80px;
+}
+
+.hrcm-automation-admin .hrcm-header-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.hrcm-automation-admin .hrcm-header-row input {
+    min-width: 200px;
+}
+
+.hrcm-automation-admin .hrcm-test-body {
+    max-height: 200px;
+    overflow: auto;
+    background: #1d2327;
+    color: #f1f5f9;
+    padding: 10px;
+}
+
+.hrcm-automation-status {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 2px 6px;
+    background: #f0f6fc;
+    border-radius: 3px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
