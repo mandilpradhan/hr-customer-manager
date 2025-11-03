@@ -29,6 +29,31 @@
         return option;
     }
 
+    function normalizeOperatorOptions(options) {
+        if (!Array.isArray(options)) {
+            return [];
+        }
+
+        return options.reduce(function (list, option) {
+            if (typeof option === 'string') {
+                list.push({ value: option, label: option });
+                return list;
+            }
+
+            if (option && typeof option === 'object') {
+                var value = option.value !== undefined ? option.value : option.key;
+                if (value) {
+                    list.push({
+                        value: value,
+                        label: option.label || value
+                    });
+                }
+            }
+
+            return list;
+        }, []);
+    }
+
     function translate(key, fallback) {
         var config = getConfig();
         if (config.i18n && config.i18n[key]) {
@@ -140,14 +165,22 @@
 
         function populateOperators(fieldKey, preserve) {
             var type = getFieldType(fieldKey);
-            var options = operatorConfig[type] || [];
+            var options = normalizeOperatorOptions(operatorConfig[type] || []);
             operatorSelect.innerHTML = '';
+            if (!options.length) {
+                var fallback = preserve ? (operatorSelect.value || operator) : operator;
+                fallback = fallback || '=';
+                operatorSelect.appendChild(createOption(fallback, fallback, true));
+                operator = fallback;
+                return;
+            }
             var chosen = preserve ? operatorSelect.value : operator;
-            if (options.indexOf(chosen) === -1) {
-                chosen = options[0] || '=';
+            var values = options.map(function (item) { return item.value; });
+            if (values.indexOf(chosen) === -1) {
+                chosen = values[0] || '=';
             }
             options.forEach(function (op) {
-                operatorSelect.appendChild(createOption(op, op, op === chosen));
+                operatorSelect.appendChild(createOption(op.value, op.label || op.value, op.value === chosen));
             });
             operator = chosen;
         }

@@ -42,8 +42,10 @@ if (!class_exists('HR_CM_Data')) {
                     }
 
                     $travelers[] = [
-                        'name'  => $name,
-                        'email' => $email,
+                        'name'       => $name,
+                        'first_name' => $first,
+                        'last_name'  => $last,
+                        'email'      => $email,
                     ];
                 }
             }
@@ -62,15 +64,19 @@ if (!class_exists('HR_CM_Data')) {
                 }
 
                 $travelers[] = [
-                    'name'  => $name,
-                    'email' => $email,
+                    'name'       => $name,
+                    'first_name' => $first,
+                    'last_name'  => $last,
+                    'email'      => $email,
                 ];
             }
 
             if (empty($travelers)) {
                 $travelers[] = [
-                    'name'  => __('Unknown Traveler', 'hr-customer-manager'),
-                    'email' => '',
+                    'name'       => __('Unknown Traveler', 'hr-customer-manager'),
+                    'first_name' => '',
+                    'last_name'  => '',
+                    'email'      => '',
                 ];
             }
 
@@ -117,18 +123,31 @@ if (!class_exists('HR_CM_Data')) {
 
             $name = trim($first . ' ' . $last);
 
-            if ('' === $name && '' === $email) {
+            if (('' === $first && '' === $last) || ('' === $name && '' === $email)) {
                 $travelers = self::get_travelers($booking_id);
                 $first_traveler = reset($travelers);
                 if (is_array($first_traveler)) {
-                    $name  = isset($first_traveler['name']) ? $first_traveler['name'] : '';
-                    $email = isset($first_traveler['email']) ? $first_traveler['email'] : '';
+                    if ('' === $first) {
+                        $first = isset($first_traveler['first_name']) ? $first_traveler['first_name'] : '';
+                    }
+                    if ('' === $last) {
+                        $last = isset($first_traveler['last_name']) ? $first_traveler['last_name'] : '';
+                    }
+
+                    if ('' === $name) {
+                        $name = isset($first_traveler['name']) ? $first_traveler['name'] : '';
+                    }
+                    if ('' === $email) {
+                        $email = isset($first_traveler['email']) ? $first_traveler['email'] : '';
+                    }
                 }
             }
 
             return [
-                'name'  => $name,
-                'email' => $email,
+                'name'       => $name,
+                'email'      => $email,
+                'first_name' => $first,
+                'last_name'  => $last,
             ];
         }
 
@@ -354,16 +373,20 @@ if (!class_exists('HR_CM_Data')) {
          * @return array
          */
         private static function normalize_traveler($traveler) {
-            $name  = isset($traveler['name']) ? sanitize_text_field($traveler['name']) : '';
-            $email = isset($traveler['email']) ? sanitize_email($traveler['email']) : '';
+            $name       = isset($traveler['name']) ? sanitize_text_field($traveler['name']) : '';
+            $first_name = isset($traveler['first_name']) ? sanitize_text_field($traveler['first_name']) : '';
+            $last_name  = isset($traveler['last_name']) ? sanitize_text_field($traveler['last_name']) : '';
+            $email      = isset($traveler['email']) ? sanitize_email($traveler['email']) : '';
 
             if ('' === $name) {
                 $name = __('Unknown Traveler', 'hr-customer-manager');
             }
 
             return [
-                'name'  => $name,
-                'email' => $email,
+                'name'       => $name,
+                'first_name' => $first_name,
+                'last_name'  => $last_name,
+                'email'      => $email,
             ];
         }
 

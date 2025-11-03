@@ -127,6 +127,7 @@ if (!class_exists('HR_CM_Automations_Admin')) {
                     '{booking_id}',
                     '{trip_name}',
                     '{departure}',
+                    '{trip_departure_date}',
                     '{days_to_trip}',
                     '{payment_status}',
                     '{info_received}',
@@ -134,6 +135,20 @@ if (!class_exists('HR_CM_Automations_Admin')) {
                     '{last_email_sent}',
                     '{last_email_template}',
                     '{last_email_sent_age_days}',
+                    '{traveler_name}',
+                    '{traveler_first_name}',
+                    '{traveler_last_name}',
+                    '{traveler_email}',
+                    '{lead_traveler_name}',
+                    '{lead_traveler_first_name}',
+                    '{lead_traveler_last_name}',
+                    '{lead_traveler_email}',
+                    '{first_traveler_name}',
+                    '{first_traveler_first_name}',
+                    '{first_traveler_last_name}',
+                    '{first_traveler_email}',
+                    '{travelers}',
+                    '{travelers_count}',
                 ],
             ];
 
@@ -166,7 +181,8 @@ if (!class_exists('HR_CM_Automations_Admin')) {
                 ],
                 'info_received' => [
                     'label' => __('Info Received', 'hr-customer-manager'),
-                    'type'  => 'string',
+                    'type'    => 'enum',
+                    'options' => ['true', 'false'],
                 ],
                 'trip_name' => [
                     'label'   => __('Trip Name', 'hr-customer-manager'),
@@ -187,9 +203,29 @@ if (!class_exists('HR_CM_Automations_Admin')) {
          */
         private function get_operator_config() {
             return [
-                'number' => ['=', '!=', '<', '<=', '>', '>=', 'between'],
-                'enum'   => ['is', 'is not', 'in', 'not in'],
-                'string' => ['contains', 'not contains', 'is', 'is not', 'is empty', 'is not empty'],
+                'number' => [
+                    ['value' => '=',  'label' => __('Equals', 'hr-customer-manager')],
+                    ['value' => '!=', 'label' => __('Does not equal', 'hr-customer-manager')],
+                    ['value' => '<',  'label' => __('Less than', 'hr-customer-manager')],
+                    ['value' => '<=', 'label' => __('Less than or equal to', 'hr-customer-manager')],
+                    ['value' => '>',  'label' => __('Greater than', 'hr-customer-manager')],
+                    ['value' => '>=', 'label' => __('Greater than or equal to', 'hr-customer-manager')],
+                    ['value' => 'between', 'label' => __('Between', 'hr-customer-manager')],
+                ],
+                'enum'   => [
+                    ['value' => 'is',     'label' => __('Is', 'hr-customer-manager')],
+                    ['value' => 'is not', 'label' => __('Is not', 'hr-customer-manager')],
+                    ['value' => 'in',     'label' => __('Is one of', 'hr-customer-manager')],
+                    ['value' => 'not in', 'label' => __('Is not one of', 'hr-customer-manager')],
+                ],
+                'string' => [
+                    ['value' => 'contains',      'label' => __('Contains', 'hr-customer-manager')],
+                    ['value' => 'not contains',  'label' => __('Does not contain', 'hr-customer-manager')],
+                    ['value' => 'is',            'label' => __('Is', 'hr-customer-manager')],
+                    ['value' => 'is not',        'label' => __('Is not', 'hr-customer-manager')],
+                    ['value' => 'is empty',      'label' => __('Is empty', 'hr-customer-manager')],
+                    ['value' => 'is not empty',  'label' => __('Is not empty', 'hr-customer-manager')],
+                ],
             ];
         }
 
