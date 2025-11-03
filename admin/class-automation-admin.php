@@ -109,6 +109,7 @@ if (!class_exists('HR_CM_Automations_Admin')) {
                 'fields'           => $fields,
                 'operators'        => $this->get_operator_config(),
                 'fieldOptions'     => [],
+                'bookings'         => $this->get_booking_preview_data(),
                 'i18n'             => [
                     'addCondition' => __('Add condition', 'hr-customer-manager'),
                     'remove'       => __('Remove', 'hr-customer-manager'),
@@ -122,6 +123,10 @@ if (!class_exists('HR_CM_Automations_Admin')) {
                     'hide'         => __('Hide', 'hr-customer-manager'),
                     'statusLabel'  => __('Status:', 'hr-customer-manager'),
                     'latencyLabel' => __('Latency:', 'hr-customer-manager'),
+                    'selectBooking'      => __('Select a booking', 'hr-customer-manager'),
+                    'noBookings'         => __('No bookings found', 'hr-customer-manager'),
+                    'previewPlaceholder' => __('Select a booking to preview the payload.', 'hr-customer-manager'),
+                    'previewEmpty'       => __('Payload preview will be empty.', 'hr-customer-manager'),
                 ],
                 'mergeTags' => [
                     '{booking_id}',
@@ -227,6 +232,57 @@ if (!class_exists('HR_CM_Automations_Admin')) {
                     ['value' => 'is not empty',  'label' => (string) __('Is not empty', 'hr-customer-manager')],
                 ],
             ];
+        }
+
+        /**
+         * Retrieve booking data for the payload preview selector.
+         *
+         * @return array
+         */
+        private function get_booking_preview_data() {
+            if (!class_exists('WP_Query')) {
+                return [];
+            }
+
+            $query = new WP_Query([
+                'post_type'      => 'booking',
+                'post_status'    => ['publish'],
+                'posts_per_page' => -1,
+                'orderby'        => 'date',
+                'order'          => 'DESC',
+                'no_found_rows'  => true,
+                'fields'         => 'ids',
+            ]);
+
+            if (!$query->have_posts()) {
+                return [];
+            }
+
+            $automations = HR_CM_Automations::instance();
+            $bookings = [];
+
+            foreach ($query->posts as $booking_id) {
+                $context = $automations->get_booking_context($booking_id);
+                if (!$context) {
+                    continue;
+                }
+
+                $trip_name = isset($context['trip_name']) ? (string) $context['trip_name'] : '';
+                if ('' === $trip_name) {
+                    $trip_name = __('Unknown Trip', 'hr-customer-manager');
+                }
+                $trip_name = wp_strip_all_tags($trip_name);
+
+                $bookings[] = [
+                    'id'      => (int) $booking_id,
+                    'label'   => sprintf('#%1$d — %2$s', (int) $booking_id, $trip_name),
+                    'context' => $context,
+                ];
+            }
+
+            wp_reset_postdata();
+
+            return $bookings;
         }
 
         /**

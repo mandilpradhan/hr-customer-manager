@@ -362,6 +362,149 @@
         });
     }
 
+    function initBookingPreview() {
+        var config = getConfig();
+        var select = document.getElementById('hrcm-webhook-booking');
+        var payload = document.getElementById('hrcm-webhook-payload');
+        var preview = document.getElementById('hrcm-webhook-payload-preview');
+        var rawToggle = document.querySelector('input[name="rule[action][raw]"]');
+
+        if (!select || !preview) {
+            return;
+        }
+
+        var bookings = Array.isArray(config.bookings) ? config.bookings : [];
+        var bookingMap = {};
+
+        function escapeRegex(value) {
+            return value.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        }
+
+        function formatValue(value) {
+            if (value === null || value === undefined) {
+                return '';
+            }
+
+            if (Array.isArray(value) || (typeof value === 'object' && value)) {
+                try {
+                    return JSON.stringify(value);
+                } catch (e) {
+                    return '';
+                }
+            }
+
+            if (typeof value === 'boolean') {
+                return value ? '1' : '0';
+            }
+
+            return String(value);
+        }
+
+        function replaceTags(template, context) {
+            var rendered = template;
+            var processed = {};
+            var tags = Array.isArray(config.mergeTags) ? config.mergeTags.slice() : [];
+
+            tags.forEach(function (tag) {
+                var key = tag.replace(/^\{|\}$/g, '');
+                processed[key] = true;
+                var placeholder = escapeRegex(tag);
+                var value = context.hasOwnProperty(key) ? context[key] : '';
+                rendered = rendered.replace(new RegExp(placeholder, 'g'), formatValue(value));
+            });
+
+            Object.keys(context || {}).forEach(function (key) {
+                if (processed[key]) {
+                    return;
+                }
+
+                var placeholder = '{' + key + '}';
+                if (rendered.indexOf(placeholder) === -1) {
+                    return;
+                }
+
+                rendered = rendered.replace(new RegExp(escapeRegex(placeholder), 'g'), formatValue(context[key]));
+            });
+
+            return rendered;
+        }
+
+        function updatePreview() {
+            if (!bookings.length) {
+                preview.value = translate('noBookings', 'No bookings found');
+                return;
+            }
+
+            var selected = select.value;
+            if (!selected || !bookingMap[selected] || !bookingMap[selected].context) {
+                preview.value = translate('previewPlaceholder', 'Select a booking to preview the payload.');
+                return;
+            }
+
+            var context = bookingMap[selected].context;
+            var template = payload ? payload.value : '';
+            var isRaw = rawToggle ? rawToggle.checked : false;
+            var rendered = template && template.trim() ? replaceTags(template, context) : '';
+
+            if (!template || !template.trim()) {
+                if (isRaw) {
+                    rendered = '';
+                } else {
+                    try {
+                        rendered = JSON.stringify(context, null, 2);
+                    } catch (e) {
+                        rendered = '';
+                    }
+                }
+            }
+
+            if (!rendered) {
+                rendered = translate('previewEmpty', 'Payload preview will be empty.');
+            }
+
+            preview.value = rendered;
+        }
+
+        function populateBookings() {
+            select.innerHTML = '';
+
+            if (!bookings.length) {
+                select.appendChild(createOption('', translate('noBookings', 'No bookings found'), true));
+                select.disabled = true;
+                updatePreview();
+                return;
+            }
+
+            select.appendChild(createOption('', translate('selectBooking', 'Select a booking'), true));
+
+            bookings.forEach(function (booking) {
+                if (!booking || booking.id === undefined) {
+                    return;
+                }
+
+                var id = String(booking.id);
+                var label = booking.label || ('#' + id);
+                bookingMap[id] = booking;
+                select.appendChild(createOption(id, label, false));
+            });
+
+            select.disabled = false;
+        }
+
+        populateBookings();
+        updatePreview();
+
+        select.addEventListener('change', updatePreview);
+
+        if (payload) {
+            payload.addEventListener('input', updatePreview);
+        }
+
+        if (rawToggle) {
+            rawToggle.addEventListener('change', updatePreview);
+        }
+    }
+
     function initTestSend() {
         var button = document.getElementById('hrcm-test-webhook');
         if (!button) {
@@ -420,6 +563,7 @@
     $(function () {
         initConditions();
         initHeaders();
+        initBookingPreview();
         initTestSend();
     });
 })(jQuery);

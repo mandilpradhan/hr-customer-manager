@@ -86,10 +86,24 @@ $repeat     = !empty($rule['schedule']['repeat']);
             </div>
 
             <div class="hrcm-field-group">
+                <label for="hrcm-webhook-booking" class="hrcm-field-label"><?php esc_html_e('Booking', 'hr-customer-manager'); ?></label>
+                <select id="hrcm-webhook-booking" class="regular-text" disabled>
+                    <option value=""><?php esc_html_e('Select a booking', 'hr-customer-manager'); ?></option>
+                </select>
+                <p class="description"><?php esc_html_e('Choose a booking to preview merge tag values.', 'hr-customer-manager'); ?></p>
+            </div>
+
+            <div class="hrcm-field-group">
                 <label for="hrcm-webhook-payload" class="hrcm-field-label"><?php esc_html_e('Payload template', 'hr-customer-manager'); ?></label>
                 <textarea id="hrcm-webhook-payload" name="rule[action][payload]" rows="8" class="large-text code"><?php echo esc_textarea($payload); ?></textarea>
                 <label><input type="checkbox" name="rule[action][raw]" value="1" <?php checked($raw); ?> /> <?php esc_html_e('Send as raw payload (disable JSON wrapping).', 'hr-customer-manager'); ?></label>
                 <p class="description"><?php esc_html_e('Available merge tags:', 'hr-customer-manager'); ?> <code>{booking_id}</code>, <code>{trip_name}</code>, <code>{departure}</code>, <code>{trip_departure_date}</code>, <code>{days_to_trip}</code>, <code>{payment_status}</code>, <code>{info_received}</code>, <code>{current_phase}</code>, <code>{last_email_sent}</code>, <code>{last_email_template}</code>, <code>{last_email_sent_age_days}</code>, <code>{traveler_name}</code>, <code>{traveler_first_name}</code>, <code>{traveler_last_name}</code>, <code>{traveler_email}</code>, <code>{lead_traveler_name}</code>, <code>{lead_traveler_first_name}</code>, <code>{lead_traveler_last_name}</code>, <code>{lead_traveler_email}</code></p>
+            </div>
+
+            <div class="hrcm-field-group">
+                <label for="hrcm-webhook-payload-preview" class="hrcm-field-label"><?php esc_html_e('Payload preview', 'hr-customer-manager'); ?></label>
+                <textarea id="hrcm-webhook-payload-preview" class="large-text code" rows="8" readonly aria-live="polite"><?php echo esc_textarea(__('Select a booking to preview the payload.', 'hr-customer-manager')); ?></textarea>
+                <p class="description"><?php esc_html_e('Merge tag values update based on the selected booking.', 'hr-customer-manager'); ?></p>
             </div>
 
             <div class="hrcm-field-group">
