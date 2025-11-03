@@ -246,7 +246,8 @@ if (!class_exists('HR_CM_Automations_Admin')) {
 
             $query = new WP_Query([
                 'post_type'      => 'booking',
-                'post_status'    => ['publish'],
+                // Include the common public WTE booking statuses so previews work for confirmed bookings too.
+                'post_status'    => ['publish', 'pending', 'confirmed', 'complete'],
                 'posts_per_page' => -1,
                 'orderby'        => 'date',
                 'order'          => 'DESC',
