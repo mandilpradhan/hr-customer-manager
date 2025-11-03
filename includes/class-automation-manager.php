@@ -1013,12 +1013,6 @@ if (!class_exists('HR_CM_Automations')) {
                 'lead_traveler_email',
                 'lead_traveler_first_name',
                 'lead_traveler_last_name',
-                'first_traveler_name',
-                'first_traveler_email',
-                'first_traveler_first_name',
-                'first_traveler_last_name',
-                'travelers',
-                'travelers_count',
             ];
 
             foreach ($tags as $tag) {
