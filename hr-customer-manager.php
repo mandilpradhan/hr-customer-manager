@@ -31,6 +31,7 @@ require_once HR_CM_PLUGIN_DIR . 'includes/class-database.php';
 require_once HR_CM_PLUGIN_DIR . 'includes/class-data.php';
 require_once HR_CM_PLUGIN_DIR . 'includes/class-phase-calculator.php';
 require_once HR_CM_PLUGIN_DIR . 'includes/class-admin-table.php';
+require_once HR_CM_PLUGIN_DIR . 'includes/class-automation-manager.php';
 require_once HR_CM_PLUGIN_DIR . 'admin/class-admin-page.php';
 
 if (!class_exists('HR_CM_Plugin')) {
@@ -71,6 +72,8 @@ if (!class_exists('HR_CM_Plugin')) {
         public function init() {
             load_plugin_textdomain('hr-customer-manager', false, dirname(plugin_basename(HR_CM_PLUGIN_FILE)) . '/languages/');
 
+            HR_CM_Automations::instance();
+
             if (is_admin()) {
                 HR_CM_Admin_Page::instance();
             }
@@ -80,4 +83,14 @@ if (!class_exists('HR_CM_Plugin')) {
 
 HR_CM_Plugin::instance();
 
-register_activation_hook(HR_CM_PLUGIN_FILE, ['HR_CM_Database', 'activate']);
+if (!function_exists('hr_cm_plugin_activate')) {
+    /**
+     * Activation routine for the plugin.
+     */
+    function hr_cm_plugin_activate() {
+        HR_CM_Database::activate();
+        HR_CM_Automations::instance()->ensure_cron();
+    }
+}
+
+register_activation_hook(HR_CM_PLUGIN_FILE, 'hr_cm_plugin_activate');

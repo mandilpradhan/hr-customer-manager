@@ -9,6 +9,8 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+require_once HR_CM_PLUGIN_DIR . 'admin/class-automation-admin.php';
+
 if (!class_exists('HR_CM_Admin_Page')) {
     /**
      * Handles admin menu registration and rendering.
@@ -56,6 +58,8 @@ if (!class_exists('HR_CM_Admin_Page')) {
             add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
             add_action('wp_ajax_hrcm_get_departures', [$this, 'ajax_get_departures']);
             add_filter('set-screen-option', [$this, 'set_screen_option'], 10, 3);
+
+            HR_CM_Automations_Admin::instance();
         }
 
         /**
@@ -98,11 +102,10 @@ if (!class_exists('HR_CM_Admin_Page')) {
                 __('Automation', 'hr-customer-manager'),
                 'manage_options',
                 'hr-customer-manager-automation',
-                function () {
-                    $this->render_placeholder(__('Automation', 'hr-customer-manager'));
-                }
+                [$this, 'render_automation']
             );
             $this->screen_hooks[] = $automation_hook;
+            add_action('load-' . $automation_hook, [$this, 'configure_automation_screen']);
 
             $templates_hook = add_submenu_page(
                 $parent_slug,
@@ -235,10 +238,17 @@ if (!class_exists('HR_CM_Admin_Page')) {
          * @return mixed
          */
         public function set_screen_option($status, $option, $value) {
-            if (HR_CM_Admin_Table::PER_PAGE_OPTION === $option) {
+            $automation_per_page_option = defined('HR_CM_Automations_List_Table::PER_PAGE_OPTION') ? HR_CM_Automations_List_Table::PER_PAGE_OPTION : 'hrcm_automations_per_page';
+
+            if (in_array($option, [HR_CM_Admin_Table::PER_PAGE_OPTION, $automation_per_page_option], true)) {
+                $default = HR_CM_Admin_Table::DEFAULT_PER_PAGE;
+                if ($automation_per_page_option === $option) {
+                    $default = 20;
+                }
+
                 $value = (int) $value;
                 if ($value < 1) {
-                    $value = HR_CM_Admin_Table::DEFAULT_PER_PAGE;
+                    $value = $default;
                 }
 
                 return $value;
@@ -313,6 +323,57 @@ if (!class_exists('HR_CM_Admin_Page')) {
             echo '<h1>' . esc_html($title) . '</h1>';
             echo '<p>' . esc_html__('This section is coming soon.', 'hr-customer-manager') . '</p>';
             echo '</div>';
+        }
+
+        /**
+         * Render the automations UI.
+         */
+        public function render_automation() {
+            if (!current_user_can('manage_options')) {
+                wp_die(__('You do not have permission to access this page.', 'hr-customer-manager'));
+            }
+
+            $action = isset($_GET['action']) ? sanitize_key(wp_unslash($_GET['action'])) : '';
+            $rule_id = isset($_GET['rule']) ? (int) $_GET['rule'] : 0;
+
+            $admin = HR_CM_Automations_Admin::instance();
+
+            if ('new' === $action) {
+                $admin->render_edit_page(0);
+                return;
+            }
+
+            if ('edit' === $action && $rule_id > 0) {
+                $admin->render_edit_page($rule_id);
+                return;
+            }
+
+            $admin->render_list_page();
+        }
+
+        /**
+         * Configure screen options for the automation list table.
+         */
+        public function configure_automation_screen() {
+            if (!current_user_can('manage_options')) {
+                return;
+            }
+
+            $screen = get_current_screen();
+            if (!$screen) {
+                return;
+            }
+
+            $per_page_option = defined('HR_CM_Automations_List_Table::PER_PAGE_OPTION') ? HR_CM_Automations_List_Table::PER_PAGE_OPTION : 'hrcm_automations_per_page';
+
+            add_screen_option(
+                'per_page',
+                [
+                    'label'   => __('Number of automations per page', 'hr-customer-manager'),
+                    'default' => 20,
+                    'option'  => $per_page_option,
+                ]
+            );
         }
     }
 }
