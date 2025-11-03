@@ -576,13 +576,31 @@ if (!class_exists('HR_CM_Automations')) {
          * @return array|null
          */
         private function build_booking_context($booking_id, DateTimeZone $timezone) {
-            $trip = HR_CM_Data::get_trip($booking_id);
-            $payment = HR_CM_Data::get_payment($booking_id);
+            $travelers = HR_CM_Data::get_travelers($booking_id);
+            $trip      = HR_CM_Data::get_trip($booking_id);
+            $payment   = HR_CM_Data::get_payment($booking_id);
+            $lead      = HR_CM_Data::get_lead($booking_id);
+
+            $first_traveler = [];
+            if (!empty($travelers)) {
+                $first_traveler = $travelers[0];
+            }
+
+            $first_traveler = array_merge(
+                [
+                    'name'       => '',
+                    'first_name' => '',
+                    'last_name'  => '',
+                    'email'      => '',
+                ],
+                is_array($first_traveler) ? $first_traveler : []
+            );
 
             $departure = isset($trip['date']) ? $trip['date'] : '';
             $days_to_trip = HR_CM_Data::days_to_trip($departure, $timezone);
 
-            $info_received = $this->get_optional_meta($booking_id, ['info_received', 'hrcm_info_received']);
+            $info_received_raw = $this->get_optional_meta($booking_id, ['info_received', 'hrcm_info_received']);
+            $info_received     = $this->normalize_boolean_flag($info_received_raw);
             $current_phase = $this->get_optional_meta($booking_id, ['hrcm_current_phase', 'current_phase']);
             $last_email    = $this->get_optional_meta($booking_id, ['hrcm_last_email_sent', 'last_email_sent']);
             $last_template = $this->get_optional_meta($booking_id, ['hrcm_last_email_template', 'last_email_template']);
@@ -598,6 +616,7 @@ if (!class_exists('HR_CM_Automations')) {
                 'booking_id'             => (int) $booking_id,
                 'trip_name'              => isset($trip['name']) ? $trip['name'] : '',
                 'departure'              => $departure,
+                'trip_departure_date'    => $departure,
                 'days_to_trip'           => $days_to_trip,
                 'payment_status'         => isset($payment['p_status']) ? $payment['p_status'] : '',
                 'info_received'          => $info_received,
@@ -605,6 +624,20 @@ if (!class_exists('HR_CM_Automations')) {
                 'last_email_sent'        => $last_email_ts ? $last_email_ts->format('c') : null,
                 'last_email_template'    => $last_template,
                 'last_email_sent_age_days' => $last_email_age,
+                'traveler_name'          => isset($lead['name']) ? $lead['name'] : '',
+                'traveler_email'         => isset($lead['email']) ? $lead['email'] : '',
+                'traveler_first_name'    => isset($lead['first_name']) ? $lead['first_name'] : '',
+                'traveler_last_name'     => isset($lead['last_name']) ? $lead['last_name'] : '',
+                'lead_traveler_name'     => isset($lead['name']) ? $lead['name'] : '',
+                'lead_traveler_email'    => isset($lead['email']) ? $lead['email'] : '',
+                'lead_traveler_first_name' => isset($lead['first_name']) ? $lead['first_name'] : '',
+                'lead_traveler_last_name'  => isset($lead['last_name']) ? $lead['last_name'] : '',
+                'first_traveler_name'    => isset($first_traveler['name']) ? $first_traveler['name'] : '',
+                'first_traveler_email'   => isset($first_traveler['email']) ? $first_traveler['email'] : '',
+                'first_traveler_first_name' => isset($first_traveler['first_name']) ? $first_traveler['first_name'] : '',
+                'first_traveler_last_name'  => isset($first_traveler['last_name']) ? $first_traveler['last_name'] : '',
+                'travelers'              => $travelers,
+                'travelers_count'        => count($travelers),
             ];
         }
 
@@ -655,6 +688,39 @@ if (!class_exists('HR_CM_Automations')) {
             }
 
             return null;
+        }
+
+        /**
+         * Normalize a truthy/falsey meta value to a string flag.
+         *
+         * @param mixed $value Raw meta value.
+         *
+         * @return string "true" or "false".
+         */
+        private function normalize_boolean_flag($value) {
+            if (is_bool($value)) {
+                return $value ? 'true' : 'false';
+            }
+
+            if (is_numeric($value)) {
+                return ((int) $value) !== 0 ? 'true' : 'false';
+            }
+
+            $value = strtolower(trim((string) $value));
+
+            if ('' === $value) {
+                return 'false';
+            }
+
+            if (in_array($value, ['true', 'yes', 'y', 'on'], true)) {
+                return 'true';
+            }
+
+            if (in_array($value, ['false', 'no', 'n', 'off'], true)) {
+                return 'false';
+            }
+
+            return 'true';
         }
 
         /**
@@ -931,6 +997,7 @@ if (!class_exists('HR_CM_Automations')) {
                 'booking_id',
                 'trip_name',
                 'departure',
+                'trip_departure_date',
                 'days_to_trip',
                 'payment_status',
                 'info_received',
@@ -938,6 +1005,20 @@ if (!class_exists('HR_CM_Automations')) {
                 'last_email_sent',
                 'last_email_template',
                 'last_email_sent_age_days',
+                'traveler_name',
+                'traveler_email',
+                'traveler_first_name',
+                'traveler_last_name',
+                'lead_traveler_name',
+                'lead_traveler_email',
+                'lead_traveler_first_name',
+                'lead_traveler_last_name',
+                'first_traveler_name',
+                'first_traveler_email',
+                'first_traveler_first_name',
+                'first_traveler_last_name',
+                'travelers',
+                'travelers_count',
             ];
 
             foreach ($tags as $tag) {
@@ -980,6 +1061,9 @@ if (!class_exists('HR_CM_Automations')) {
                 $statuses[] = strtolower($value);
             }
 
+            $defaults = ['pending', 'balance due', 'fully paid'];
+            $statuses = array_merge($defaults, $statuses);
+            $statuses = array_map('strtolower', $statuses);
             $statuses = array_values(array_unique($statuses));
             sort($statuses, SORT_NATURAL | SORT_FLAG_CASE);
 
