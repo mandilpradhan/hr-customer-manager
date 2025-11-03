@@ -568,6 +568,24 @@ if (!class_exists('HR_CM_Automations')) {
         }
 
         /**
+         * Retrieve a single booking context for previews.
+         *
+         * @param int $booking_id Booking post ID.
+         *
+         * @return array|null
+         */
+        public function get_booking_context($booking_id) {
+            $booking_id = (int) $booking_id;
+            if ($booking_id <= 0) {
+                return null;
+            }
+
+            $timezone = wp_timezone();
+
+            return $this->build_booking_context($booking_id, $timezone);
+        }
+
+        /**
          * Build booking context for rule evaluation.
          *
          * @param int           $booking_id Booking post ID.
