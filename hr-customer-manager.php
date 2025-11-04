@@ -33,6 +33,7 @@ require_once HR_CM_PLUGIN_DIR . 'includes/class-phase-calculator.php';
 require_once HR_CM_PLUGIN_DIR . 'includes/class-admin-table.php';
 require_once HR_CM_PLUGIN_DIR . 'includes/class-automation-manager.php';
 require_once HR_CM_PLUGIN_DIR . 'includes/class-debug-viewer-data.php';
+require_once HR_CM_PLUGIN_DIR . 'includes/class-overall-trip-view.php';
 require_once HR_CM_PLUGIN_DIR . 'admin/class-admin-page.php';
 
 if (!class_exists('HR_CM_Plugin')) {
@@ -74,6 +75,7 @@ if (!class_exists('HR_CM_Plugin')) {
             load_plugin_textdomain('hr-customer-manager', false, dirname(plugin_basename(HR_CM_PLUGIN_FILE)) . '/languages/');
 
             HR_CM_Automations::instance();
+            HR_CM_Overall_Trip_View::instance();
 
             if (is_admin()) {
                 HR_CM_Admin_Page::instance();
