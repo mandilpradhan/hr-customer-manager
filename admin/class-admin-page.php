@@ -57,6 +57,7 @@ if (!class_exists('HR_CM_Admin_Page')) {
             add_action('admin_menu', [$this, 'register_menu']);
             add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
             add_action('wp_ajax_hrcm_get_departures', [$this, 'ajax_get_departures']);
+            add_action('wp_ajax_hrcm_debug_viewer_get_booking', [$this, 'ajax_get_debug_booking']);
             add_filter('set-screen-option', [$this, 'set_screen_option'], 10, 3);
 
             HR_CM_Automations_Admin::instance();
@@ -106,6 +107,16 @@ if (!class_exists('HR_CM_Admin_Page')) {
             );
             $this->screen_hooks[] = $automation_hook;
             add_action('load-' . $automation_hook, [$this, 'configure_automation_screen']);
+
+            $debug_hook = add_submenu_page(
+                $parent_slug,
+                __('Debug Viewer', 'hr-customer-manager'),
+                __('Debug Viewer', 'hr-customer-manager'),
+                'manage_options',
+                'hr-customer-manager-debug',
+                [$this, 'render_debug_viewer']
+            );
+            $this->screen_hooks[] = $debug_hook;
 
             $templates_hook = add_submenu_page(
                 $parent_slug,
@@ -185,6 +196,51 @@ if (!class_exists('HR_CM_Admin_Page')) {
                     'departuresNonce' => wp_create_nonce('hrcm_get_departures'),
                 ]
             );
+
+            if ('hr-customer-manager_page_hr-customer-manager-debug' === $hook_suffix) {
+                wp_enqueue_style(
+                    'hr-cm-debug-viewer',
+                    HR_CM_PLUGIN_URL . 'admin/assets/css/debug-viewer.css',
+                    ['hr-cm-admin'],
+                    HR_CM_VERSION
+                );
+
+                wp_enqueue_script(
+                    'hr-cm-debug-viewer',
+                    HR_CM_PLUGIN_URL . 'admin/assets/js/debug-viewer.js',
+                    ['jquery'],
+                    HR_CM_VERSION,
+                    true
+                );
+
+                $sections = [
+                    'booking'   => __('Booking', 'hr-customer-manager'),
+                    'payments'  => __('Payments', 'hr-customer-manager'),
+                    'cart'      => __('Cart', 'hr-customer-manager'),
+                    'order'     => __('Order/Trip', 'hr-customer-manager'),
+                    'billing'   => __('Billing', 'hr-customer-manager'),
+                    'travelers' => __('Travelers', 'hr-customer-manager'),
+                    'extras'    => __('Extras', 'hr-customer-manager'),
+                    'raw'       => __('Raw', 'hr-customer-manager'),
+                ];
+
+                wp_localize_script(
+                    'hr-cm-debug-viewer',
+                    'hrCmDebugViewer',
+                    [
+                        'ajaxUrl' => admin_url('admin-ajax.php'),
+                        'nonce'   => wp_create_nonce('hrcm_debug_viewer'),
+                        'sections' => $sections,
+                        'strings' => [
+                            'loading'      => __('Loading booking…', 'hr-customer-manager'),
+                            'noData'       => __('No booking data available.', 'hr-customer-manager'),
+                            'copySuccess'  => __('Copied to clipboard.', 'hr-customer-manager'),
+                            'copyFailure'  => __('Copy failed. Please try again.', 'hr-customer-manager'),
+                            'errorPrefix'  => __('HR_CM Debug:', 'hr-customer-manager'),
+                        ],
+                    ]
+                );
+            }
         }
 
         /**
@@ -349,6 +405,52 @@ if (!class_exists('HR_CM_Admin_Page')) {
             }
 
             $admin->render_list_page();
+        }
+
+        /**
+         * Render the Debug Viewer page.
+         */
+        public function render_debug_viewer() {
+            if (!current_user_can('manage_options')) {
+                wp_die(__('You do not have permission to access this page.', 'hr-customer-manager'));
+            }
+
+            $bookings = HR_CM_Debug_Viewer_Data::get_recent_bookings();
+            $sections = [
+                'booking'   => __('Booking', 'hr-customer-manager'),
+                'payments'  => __('Payments', 'hr-customer-manager'),
+                'cart'      => __('Cart', 'hr-customer-manager'),
+                'order'     => __('Order/Trip', 'hr-customer-manager'),
+                'billing'   => __('Billing', 'hr-customer-manager'),
+                'travelers' => __('Travelers', 'hr-customer-manager'),
+                'extras'    => __('Extras', 'hr-customer-manager'),
+                'raw'       => __('Raw', 'hr-customer-manager'),
+            ];
+
+            include HR_CM_PLUGIN_DIR . 'admin/views/debug-viewer.php';
+        }
+
+        /**
+         * AJAX handler for booking debug payload.
+         */
+        public function ajax_get_debug_booking() {
+            if (!current_user_can('manage_options')) {
+                wp_send_json_error(['message' => __('You are not allowed to perform this action.', 'hr-customer-manager')]);
+            }
+
+            check_ajax_referer('hrcm_debug_viewer', 'nonce');
+
+            $booking_id = isset($_POST['bookingId']) ? (int) $_POST['bookingId'] : 0;
+
+            $payload = HR_CM_Debug_Viewer_Data::get_booking_payload($booking_id);
+            if (is_wp_error($payload)) {
+                $message = $payload->get_error_message();
+                wp_send_json_error([
+                    'message' => $message,
+                ]);
+            }
+
+            wp_send_json_success($payload);
         }
 
         /**

@@ -32,6 +32,7 @@ require_once HR_CM_PLUGIN_DIR . 'includes/class-data.php';
 require_once HR_CM_PLUGIN_DIR . 'includes/class-phase-calculator.php';
 require_once HR_CM_PLUGIN_DIR . 'includes/class-admin-table.php';
 require_once HR_CM_PLUGIN_DIR . 'includes/class-automation-manager.php';
+require_once HR_CM_PLUGIN_DIR . 'includes/class-debug-viewer-data.php';
 require_once HR_CM_PLUGIN_DIR . 'admin/class-admin-page.php';
 
 if (!class_exists('HR_CM_Plugin')) {
