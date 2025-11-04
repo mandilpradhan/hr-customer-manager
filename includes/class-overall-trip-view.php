@@ -301,7 +301,7 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
             }
 
             $dates_data = $this->get_trip_dates($trip_id);
-            $dates      = isset($dates_data['dates']) && is_array($dates_data['dates']) ? $dates_data['dates'] : [];
+            $dates      = isset($dates_data['dates']) && is_array($dates_data['dates']) ? array_values(array_unique($dates_data['dates'])) : [];
             $next_info  = $this->find_next_departure($dates, $timezone, $today_midnight);
             $next_departure = $next_info['date'];
             $next_timestamp = $next_info['timestamp'];
@@ -778,24 +778,132 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
                 return [];
             }
 
-            if (is_string($raw)) {
-                $maybe_json = json_decode($raw, true);
-                if (JSON_ERROR_NONE === json_last_error()) {
-                    $raw = $maybe_json;
-                }
-            }
-
-            $value = maybe_unserialize($raw);
-
-            if ($value instanceof \stdClass) {
-                $value = (array) $value;
-            }
+            $value = $this->parse_meta_value($raw);
 
             if (!is_array($value)) {
                 return [];
             }
 
-            return $value;
+            return $this->flatten_order_trip_items($value);
+        }
+
+        /**
+         * Recursively flatten order trip structures to cart items.
+         *
+         * @param array $value Parsed order trip meta.
+         *
+         * @return array
+         */
+        private function flatten_order_trip_items($value) {
+            $items = [];
+
+            if (!is_array($value)) {
+                return $items;
+            }
+
+            if ($this->is_order_trip_item($value)) {
+                $items[] = $value;
+
+                return $items;
+            }
+
+            foreach ($value as $entry) {
+                if (is_array($entry)) {
+                    $items = array_merge($items, $this->flatten_order_trip_items($entry));
+                }
+            }
+
+            return $items;
+        }
+
+        /**
+         * Determine whether the provided array looks like a trip cart item.
+         *
+         * @param array $item Candidate array.
+         *
+         * @return bool
+         */
+        private function is_order_trip_item(array $item) {
+            foreach (['trip_id', 'tid', 'ID'] as $key) {
+                if (!empty($item[$key])) {
+                    return true;
+                }
+            }
+
+            if (!empty($item['id']) && $this->item_has_trip_context($item)) {
+                return true;
+            }
+
+            if (isset($item['_cart_item_object']) && is_array($item['_cart_item_object'])) {
+                foreach (['trip_id', 'tid', 'ID', 'id'] as $key) {
+                    if (!empty($item['_cart_item_object'][$key])) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /**
+         * Check for fields that imply the array is describing a trip item.
+         *
+         * @param array $item Candidate array.
+         *
+         * @return bool
+         */
+        private function item_has_trip_context(array $item) {
+            $context_keys = [
+                'datetime',
+                'date',
+                'start_date',
+                'trip_start_date',
+                'pax',
+                'travellers_details',
+                'travellers',
+                'travelers',
+            ];
+
+            foreach ($context_keys as $key) {
+                if (array_key_exists($key, $item)) {
+                    return true;
+                }
+            }
+
+            if (isset($item['_cart_item_object']) && is_array($item['_cart_item_object'])) {
+                return true;
+            }
+
+            return false;
+        }
+
+        /**
+         * Extract a trip ID from a cart item if present.
+         *
+         * @param array $item Cart item data.
+         *
+         * @return int
+         */
+        private function extract_trip_id_from_item(array $item) {
+            foreach (['trip_id', 'tid', 'ID'] as $key) {
+                if (!empty($item[$key])) {
+                    return (int) $item[$key];
+                }
+            }
+
+            if (!empty($item['id']) && $this->item_has_trip_context($item)) {
+                return (int) $item['id'];
+            }
+
+            if (isset($item['_cart_item_object']) && is_array($item['_cart_item_object'])) {
+                foreach (['trip_id', 'tid', 'ID', 'id'] as $key) {
+                    if (!empty($item['_cart_item_object'][$key])) {
+                        return (int) $item['_cart_item_object'][$key];
+                    }
+                }
+            }
+
+            return 0;
         }
 
         /**
@@ -807,11 +915,11 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
          * @return bool
          */
         private function item_matches_trip(array $item, $trip_id) {
-            $keys = ['id', 'trip_id', 'tid', 'ID'];
-            foreach ($keys as $key) {
-                if (isset($item[$key]) && (int) $item[$key] === (int) $trip_id) {
-                    return true;
-                }
+            $trip_id = (int) $trip_id;
+
+            $candidate = $this->extract_trip_id_from_item($item);
+            if ($candidate > 0) {
+                return $candidate === $trip_id;
             }
 
             return false;
@@ -867,6 +975,14 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
                 return [];
             }
 
+            if (is_array($value)) {
+                return $value;
+            }
+
+            if (is_object($value)) {
+                return json_decode(wp_json_encode($value), true);
+            }
+
             if (is_string($value)) {
                 $maybe_json = json_decode($value, true);
                 if (JSON_ERROR_NONE === json_last_error()) {
@@ -878,6 +994,14 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
 
             if ($unserialized instanceof \stdClass) {
                 $unserialized = (array) $unserialized;
+            }
+
+            if (is_array($unserialized)) {
+                return $unserialized;
+            }
+
+            if (is_object($unserialized)) {
+                return json_decode(wp_json_encode($unserialized), true);
             }
 
             return $unserialized;
@@ -896,6 +1020,17 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
                     $normalized = $this->normalize_date_key($item[$key]);
                     if ('' !== $normalized) {
                         return $normalized;
+                    }
+                }
+            }
+
+            if (isset($item['_cart_item_object']) && is_array($item['_cart_item_object'])) {
+                foreach (['trip_date', 'trip_start_date', 'datetime', 'date'] as $key) {
+                    if (!empty($item['_cart_item_object'][$key]) && is_string($item['_cart_item_object'][$key])) {
+                        $normalized = $this->normalize_date_key($item['_cart_item_object'][$key]);
+                        if ('' !== $normalized) {
+                            return $normalized;
+                        }
                     }
                 }
             }
@@ -950,10 +1085,10 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
                 if (!is_array($item)) {
                     continue;
                 }
-                foreach (['id', 'trip_id', 'tid', 'ID'] as $key) {
-                    if (isset($item[$key])) {
-                        $trip_ids[] = (int) $item[$key];
-                    }
+
+                $candidate = $this->extract_trip_id_from_item($item);
+                if ($candidate > 0) {
+                    $trip_ids[] = $candidate;
                 }
             }
 
