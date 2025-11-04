@@ -1,0 +1,244 @@
+.hr-cm-debug-viewer {
+    max-width: 100%;
+}
+
+.hrcm-debug-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 2rem;
+    margin-bottom: 1.5rem;
+    align-items: flex-end;
+}
+
+.hrcm-debug-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.hrcm-debug-label {
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.hrcm-debug-booking-select {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.hrcm-debug-search {
+    min-width: 220px;
+}
+
+.hrcm-debug-select {
+    min-width: 320px;
+}
+
+.hrcm-debug-section-toggle-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.hrcm-debug-section-toggle {
+    border-radius: 999px;
+    border: 1px solid #ccd0d4;
+    background: #fff;
+    color: #1d2327;
+    padding: 0.25rem 0.75rem;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.hrcm-debug-section-toggle:hover,
+.hrcm-debug-section-toggle:focus {
+    border-color: #2271b1;
+    color: #0a4b78;
+}
+
+.hrcm-debug-section-toggle.is-active {
+    background: #2271b1;
+    border-color: #1e5a8a;
+    color: #fff;
+}
+
+.hrcm-debug-feedback {
+    min-height: 20px;
+    margin-bottom: 1rem;
+    color: #1d2327;
+}
+
+.hrcm-debug-feedback .notice {
+    margin: 0;
+}
+
+.hrcm-debug-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.hrcm-debug-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.hrcm-debug-section {
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    background: #fff;
+    padding: 1rem;
+}
+
+.hrcm-debug-section[hidden] {
+    display: none;
+}
+
+.hrcm-debug-section__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.hrcm-debug-section__title {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.hrcm-debug-section__controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.hrcm-debug-view-toggle {
+    display: inline-flex;
+    border: 1px solid #ccd0d4;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.hrcm-debug-view-button {
+    background: transparent;
+    border: 0;
+    padding: 0.3rem 0.9rem;
+    font-size: 13px;
+    cursor: pointer;
+    color: #1d2327;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.hrcm-debug-view-button:hover,
+.hrcm-debug-view-button:focus {
+    background: #f0f6fc;
+    color: #0a4b78;
+}
+
+.hrcm-debug-view-button.is-active {
+    background: #2271b1;
+    color: #fff;
+}
+
+.hrcm-debug-section__body {
+    position: relative;
+}
+
+.hrcm-debug-table {
+    margin: 0;
+    table-layout: fixed;
+}
+
+.hrcm-debug-table th,
+.hrcm-debug-table td {
+    vertical-align: top;
+    word-break: break-word;
+}
+
+.hrcm-debug-key {
+    font-family: Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.hrcm-debug-value {
+    white-space: pre-wrap;
+}
+
+.hrcm-debug-table th:first-child,
+.hrcm-debug-table td:first-child {
+    width: 40%;
+    padding-left: 1.5rem;
+}
+
+.hrcm-debug-table tbody tr {
+    position: relative;
+}
+
+.hrcm-debug-table tbody tr::before {
+    content: attr(data-row-label);
+    position: absolute;
+    left: -2.25rem;
+    top: 0.45rem;
+    font-size: 11px;
+    color: #757575;
+}
+
+.hrcm-debug-col-label {
+    display: inline-block;
+    font-size: 11px;
+    color: #757575;
+    margin-right: 0.4rem;
+    text-transform: uppercase;
+}
+
+.hrcm-debug-raw {
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin: 0;
+    font-family: Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-size: 12px;
+    max-height: 420px;
+    overflow: auto;
+}
+
+.hrcm-debug-raw[hidden] {
+    display: none;
+}
+
+.hrcm-debug-section__body[data-view="raw"] .hrcm-debug-table {
+    display: none;
+}
+
+.hrcm-debug-section__body[data-view="pretty"] .hrcm-debug-raw {
+    display: none;
+}
+
+.hrcm-debug-section__body[data-view="raw"] .hrcm-debug-raw {
+    display: block;
+}
+
+.hrcm-debug-section__body[data-view="pretty"] .hrcm-debug-table {
+    display: table;
+}
+
+@media (max-width: 782px) {
+    .hrcm-debug-table tbody tr::before {
+        left: -1.75rem;
+    }
+
+    .hrcm-debug-section__header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hrcm-debug-section__controls {
+        flex-wrap: wrap;
+    }
+}
