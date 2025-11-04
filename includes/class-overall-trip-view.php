@@ -126,10 +126,13 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
 
             $timezone = wp_timezone();
             $today    = current_time('Y-m-d');
-            $now_ts   = current_time('timestamp');
+            $today_midnight = $this->get_local_timestamp($today, $timezone);
+            if (null === $today_midnight) {
+                $today_midnight = (int) current_time('timestamp');
+            }
 
             foreach ($trip_ids as $trip_id) {
-                $rows[] = $this->build_row($trip_id, $today, $date_format, $timezone, $now_ts);
+                $rows[] = $this->build_row($trip_id, $today, $today_midnight, $date_format, $timezone);
             }
 
             $rows = $this->sort_rows($rows, $orderby, $order);
@@ -275,15 +278,15 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
         /**
          * Build a single row of trip data.
          *
-         * @param int           $trip_id     Trip ID.
-         * @param string        $today       Current date (Y-m-d).
-         * @param string        $date_format Date display format.
-         * @param DateTimeZone  $timezone    Site timezone.
-         * @param int           $now_ts      Current timestamp.
+         * @param int           $trip_id        Trip ID.
+         * @param string        $today          Current date (Y-m-d).
+         * @param int           $today_midnight Timestamp for today's midnight in site TZ.
+         * @param string        $date_format    Date display format.
+         * @param DateTimeZone  $timezone       Site timezone.
          *
          * @return array
          */
-        private function build_row($trip_id, $today, $date_format, $timezone, $now_ts) {
+        private function build_row($trip_id, $today, $today_midnight, $date_format, $timezone) {
             $trip_id    = (int) $trip_id;
             $title      = get_the_title($trip_id);
             $title      = is_string($title) ? wp_strip_all_tags($title) : '';
@@ -299,8 +302,9 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
 
             $dates_data = $this->get_trip_dates($trip_id);
             $dates      = isset($dates_data['dates']) && is_array($dates_data['dates']) ? $dates_data['dates'] : [];
-            $next_departure = $this->determine_next_departure($dates, $today);
-            $next_timestamp = $this->get_local_timestamp($next_departure, $timezone);
+            $next_info  = $this->find_next_departure($dates, $timezone, $today_midnight);
+            $next_departure = $next_info['date'];
+            $next_timestamp = $next_info['timestamp'];
 
             $booking_stats = $this->get_booking_stats($trip_id);
             $total_pax     = isset($booking_stats['total_pax']) ? (int) $booking_stats['total_pax'] : 0;
@@ -310,7 +314,7 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
                 $pax_on_next = (int) $pax_by_date[$next_departure];
             }
 
-            $days_to_next = $this->calculate_days_until($next_timestamp, $now_ts);
+            $days_to_next = $this->calculate_days_until($next_timestamp, $today_midnight);
 
             $row = [
                 'trip_id'                 => $trip_id,
@@ -434,43 +438,61 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
         /**
          * Determine the next departure date that is on or after today.
          *
-         * @param array  $dates Date list.
-         * @param string $today Today (Y-m-d).
+         * @param array        $dates          Date list.
+         * @param DateTimeZone $timezone       Site timezone.
+         * @param int|null     $today_midnight Today's midnight timestamp in site TZ.
          *
-         * @return string|null
+         * @return array
          */
-        private function determine_next_departure(array $dates, $today) {
-            $today = (string) $today;
-            $next  = null;
+        private function find_next_departure(array $dates, $timezone, $today_midnight) {
+            $next_date      = null;
+            $next_timestamp = null;
 
             foreach ($dates as $date) {
                 $date = (string) $date;
                 if ('' === $date) {
                     continue;
                 }
-                if ($date >= $today) {
-                    $next = $date;
-                    break;
+
+                $timestamp = $this->get_local_timestamp($date, $timezone);
+                if (null === $timestamp) {
+                    continue;
+                }
+
+                if (null !== $today_midnight && $timestamp < $today_midnight) {
+                    continue;
+                }
+
+                if (null === $next_timestamp || $timestamp < $next_timestamp) {
+                    $next_timestamp = $timestamp;
+                    $next_date      = $date;
                 }
             }
 
-            return $next;
+            return [
+                'date'      => $next_date,
+                'timestamp' => $next_timestamp,
+            ];
         }
 
         /**
          * Calculate the number of days until a timestamp.
          *
-         * @param int|null $target_timestamp Target timestamp.
-         * @param int      $now_timestamp    Current timestamp.
+         * @param int|null $target_timestamp  Target timestamp.
+         * @param int|null $reference_timestamp Reference timestamp representing today.
          *
          * @return int|null
          */
-        private function calculate_days_until($target_timestamp, $now_timestamp) {
+        private function calculate_days_until($target_timestamp, $reference_timestamp) {
             if (!$target_timestamp) {
                 return null;
             }
 
-            $diff = (int) $target_timestamp - (int) $now_timestamp;
+            if (null === $reference_timestamp) {
+                return null;
+            }
+
+            $diff = (int) $target_timestamp - (int) $reference_timestamp;
             if ($diff < 0) {
                 return null;
             }
@@ -564,34 +586,45 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
                 $raw = $raw['data'];
             }
 
-            if (is_array($raw) && isset($raw['dates']) && is_array($raw['dates'])) {
-                $raw = $raw['dates'];
+            $raw_dates = [];
+
+            if (is_array($raw)) {
+                if (!empty($raw) && isset($raw[0]) && is_array($raw[0]) && isset($raw[0]['dates']) && is_array($raw[0]['dates'])) {
+                    $raw_dates = $raw[0]['dates'];
+                } elseif (isset($raw['dates']) && is_array($raw['dates'])) {
+                    $raw_dates = $raw['dates'];
+                } else {
+                    $raw_dates = $raw;
+                }
             }
 
             $dates = [];
 
-            if (is_array($raw)) {
-                foreach ($raw as $key => $value) {
-                    $candidate = '';
-
+            if (is_array($raw_dates)) {
+                foreach ($raw_dates as $key => $value) {
                     if (is_string($key)) {
-                        $candidate = $key;
+                        $normalized = $this->normalize_date_key($key);
+                        if ('' !== $normalized) {
+                            $dates[$normalized] = true;
+                            continue;
+                        }
                     }
 
                     if (is_array($value)) {
                         foreach (['date', 'datetime', 'start_date'] as $date_key) {
                             if (!empty($value[$date_key]) && is_string($value[$date_key])) {
-                                $candidate = $value[$date_key];
+                                $normalized = $this->normalize_date_key($value[$date_key]);
+                                if ('' !== $normalized) {
+                                    $dates[$normalized] = true;
+                                }
                                 break;
                             }
                         }
-                    } elseif (is_string($value) && '' === $candidate) {
-                        $candidate = $value;
-                    }
-
-                    $normalized = $this->normalize_date_key($candidate);
-                    if ('' !== $normalized) {
-                        $dates[$normalized] = true;
+                    } elseif (is_string($value)) {
+                        $normalized = $this->normalize_date_key($value);
+                        if ('' !== $normalized) {
+                            $dates[$normalized] = true;
+                        }
                     }
                 }
             }
@@ -601,7 +634,7 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
 
             return [
                 'dates'     => $date_keys,
-                'raw_dates' => $raw,
+                'raw_dates' => $raw_dates,
             ];
         }
 
