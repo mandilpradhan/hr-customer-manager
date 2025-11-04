@@ -600,34 +600,7 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
 
             $dates = [];
 
-            if (is_array($raw_dates)) {
-                foreach ($raw_dates as $key => $value) {
-                    if (is_string($key)) {
-                        $normalized = $this->normalize_date_key($key);
-                        if ('' !== $normalized) {
-                            $dates[$normalized] = true;
-                            continue;
-                        }
-                    }
-
-                    if (is_array($value)) {
-                        foreach (['date', 'datetime', 'start_date'] as $date_key) {
-                            if (!empty($value[$date_key]) && is_string($value[$date_key])) {
-                                $normalized = $this->normalize_date_key($value[$date_key]);
-                                if ('' !== $normalized) {
-                                    $dates[$normalized] = true;
-                                }
-                                break;
-                            }
-                        }
-                    } elseif (is_string($value)) {
-                        $normalized = $this->normalize_date_key($value);
-                        if ('' !== $normalized) {
-                            $dates[$normalized] = true;
-                        }
-                    }
-                }
-            }
+            $this->collect_dates_recursively($raw_dates, $dates);
 
             $date_keys = array_keys($dates);
             sort($date_keys, SORT_STRING);
@@ -636,6 +609,55 @@ if (!class_exists('HR_CM_Overall_Trip_View')) {
                 'dates'     => $date_keys,
                 'raw_dates' => $raw_dates,
             ];
+        }
+
+        /**
+         * Recursively collect normalized dates from a mixed payload.
+         *
+         * @param mixed $payload Potentially nested dates payload.
+         * @param array $dates   Reference array used as a set of normalized dates.
+         */
+        private function collect_dates_recursively($payload, array &$dates) {
+            if (is_array($payload)) {
+                foreach ($payload as $key => $value) {
+                    if (is_string($key)) {
+                        $normalized = $this->normalize_date_key($key);
+                        if ('' !== $normalized) {
+                            $dates[$normalized] = true;
+                        }
+                    }
+
+                    if (is_array($value)) {
+                        foreach (['date', 'datetime', 'start_date'] as $date_key) {
+                            if (isset($value[$date_key]) && is_string($value[$date_key])) {
+                                $normalized = $this->normalize_date_key($value[$date_key]);
+                                if ('' !== $normalized) {
+                                    $dates[$normalized] = true;
+                                }
+                            }
+                        }
+
+                        $this->collect_dates_recursively($value, $dates);
+                        continue;
+                    }
+
+                    if (is_string($value)) {
+                        $normalized = $this->normalize_date_key($value);
+                        if ('' !== $normalized) {
+                            $dates[$normalized] = true;
+                        }
+                    }
+                }
+
+                return;
+            }
+
+            if (is_string($payload)) {
+                $normalized = $this->normalize_date_key($payload);
+                if ('' !== $normalized) {
+                    $dates[$normalized] = true;
+                }
+            }
         }
 
         /**
