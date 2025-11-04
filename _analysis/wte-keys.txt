@@ -1,0 +1,44 @@
+# WTE Keys Inventory (HR Customer Manager)
+# Generated: 2025-11-04T14:53:42+00:00
+
+## Summary
+- Total unique keys found: 32
+- Namespaces/prefixes detected: wp_travel_engine, wptravelengine, WTE, lead_, order_, trip_, total_, paid_
+
+## Keys
+wptravelengine_travelers_details | type=post_meta | files=includes/class-data.php | functions=HR_CM_Data::get_travelers
+lead_fname | type=post_meta | files=includes/class-data.php | functions=HR_CM_Data::get_lead
+lead_first_name | type=post_meta | files=includes/class-data.php | functions=HR_CM_Data::get_lead
+lead_lname | type=post_meta | files=includes/class-data.php | functions=HR_CM_Data::get_lead
+lead_last_name | type=post_meta | files=includes/class-data.php | functions=HR_CM_Data::get_lead
+lead_email | type=post_meta | files=includes/class-data.php | functions=HR_CM_Data::get_lead
+order_trips | type=post_meta | files=includes/class-data.php | functions=HR_CM_Data::get_trip
+trip_start_date | type=post_meta,other | files=includes/class-data.php | functions=HR_CM_Data::get_trip
+total_due_amount | type=post_meta | files=includes/class-data.php | functions=HR_CM_Data::get_payment
+total_paid_amount | type=post_meta | files=includes/class-data.php | functions=HR_CM_Data::get_payment
+paid_amount | type=post_meta | files=includes/class-data.php | functions=HR_CM_Data::get_payment
+wp_travel_engine_booking_payment_status | type=post_meta | files=includes/class-data.php,includes/class-automation-manager.php | functions=HR_CM_Data::get_payment; HR_CM_Automation_Manager::get_payment_statuses
+wp_travel_engine_booking_status | type=post_meta | files=includes/class-data.php | functions=HR_CM_Data::get_payment
+wp_travel_engine_booking_setting | type=post_meta | files=includes/class-data.php | functions=HR_CM_Data::get_all_booking_trip_names; HR_CM_Data::get_place_order
+WTE_Fixed_Starting_Dates_setting | type=post_meta | files=includes/class-admin-table.php | functions=HR_CM_Admin_Table::fetch_departures_from_meta
+place_order | type=other | files=includes/class-data.php | functions=HR_CM_Data::get_travelers; HR_CM_Data::get_lead; HR_CM_Data::get_trip; HR_CM_Data::get_all_booking_trip_names; HR_CM_Data::get_place_order
+booking | type=other | files=includes/class-data.php | functions=HR_CM_Data::get_travelers
+lead_traveler | type=other | files=includes/class-data.php | functions=HR_CM_Data::get_lead
+fname | type=other | files=includes/class-data.php | functions=HR_CM_Data::get_travelers; HR_CM_Data::get_lead
+lname | type=other | files=includes/class-data.php | functions=HR_CM_Data::get_travelers; HR_CM_Data::get_lead
+email | type=other | files=includes/class-data.php | functions=HR_CM_Data::get_travelers; HR_CM_Data::get_lead
+tid | type=other | files=includes/class-data.php | functions=HR_CM_Data::get_trip
+tname | type=other | files=includes/class-data.php | functions=HR_CM_Data::get_trip
+datetime | type=other | files=includes/class-data.php | functions=HR_CM_Data::get_trip
+title | type=other | files=includes/class-data.php | functions=HR_CM_Data::get_trip
+id | type=other | files=includes/class-data.php | functions=HR_CM_Data::get_trip
+trip_id | type=other | files=includes/class-data.php | functions=HR_CM_Data::get_trip
+departure_dates | type=other | files=includes/class-admin-table.php | functions=HR_CM_Admin_Table::fetch_departures_from_meta
+date | type=other | files=includes/class-admin-table.php | functions=HR_CM_Admin_Table::fetch_departures_via_rest
+start | type=other | files=includes/class-admin-table.php | functions=HR_CM_Admin_Table::fetch_departures_via_rest
+trip_date | type=other | files=includes/class-admin-table.php | functions=HR_CM_Admin_Table::fetch_departures_via_rest
+wptravelengine/v3/trips/%d/dates | type=rest | files=includes/class-admin-table.php | functions=HR_CM_Admin_Table::fetch_departures_via_rest
+
+## Notes
+- Derived keys (string concatenation): wptravelengine/v3/trips/%d/dates => sprintf('wptravelengine/v3/trips/%d/dates', $trip_id) (includes/class-admin-table.php)
+- Potential false-positives (review): email, id, title (generic names reused in WP Travel Engine payloads)
