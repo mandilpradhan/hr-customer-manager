@@ -38,6 +38,13 @@ if (!class_exists('HR_CM_Admin_Page')) {
         private $column_labels = [];
 
         /**
+         * Whether the screen settings filter has been added for the overall trip view.
+         *
+         * @var bool
+         */
+        private $overall_screen_settings_added = false;
+
+        /**
          * Get singleton instance.
          *
          * @return HR_CM_Admin_Page
@@ -118,6 +125,17 @@ if (!class_exists('HR_CM_Admin_Page')) {
             );
             $this->screen_hooks[] = $debug_hook;
 
+            $trip_view_hook = add_submenu_page(
+                $parent_slug,
+                __('Overall Trip View', 'hr-customer-manager'),
+                __('Overall Trip View', 'hr-customer-manager'),
+                'manage_options',
+                'hr-customer-manager-overall-trip-view',
+                [$this, 'render_overall_trip_view']
+            );
+            $this->screen_hooks[] = $trip_view_hook;
+            add_action('load-' . $trip_view_hook, [$this, 'configure_overall_trip_view_screen']);
+
             $templates_hook = add_submenu_page(
                 $parent_slug,
                 __('Templates', 'hr-customer-manager'),
@@ -164,6 +182,7 @@ if (!class_exists('HR_CM_Admin_Page')) {
                 'toplevel_page_hr-customer-manager',
                 'hr-customer-manager_page_hr-customer-manager',
                 'hrcm_page_customers',
+                'hr-customer-manager_page_hr-customer-manager-overall-trip-view',
             ];
 
             if (in_array($hook_suffix, $table_screens, true)) {
@@ -176,6 +195,67 @@ if (!class_exists('HR_CM_Admin_Page')) {
             }
 
             wp_enqueue_style('dashicons');
+
+            if ('hr-customer-manager_page_hr-customer-manager-overall-trip-view' === $hook_suffix) {
+                wp_enqueue_style(
+                    'hrcm-overall-trip-view',
+                    HR_CM_PLUGIN_URL . 'admin/assets/css/overall-trip-view.css',
+                    ['hrcm-admin-table'],
+                    HR_CM_VERSION
+                );
+
+                wp_enqueue_script(
+                    'hrcm-overall-trip-view',
+                    HR_CM_PLUGIN_URL . 'admin/assets/js/overall-trip-view.js',
+                    [],
+                    HR_CM_VERSION,
+                    true
+                );
+
+                if (function_exists('wp_script_add_data')) {
+                    wp_script_add_data('hrcm-overall-trip-view', 'type', 'module');
+                }
+
+                $per_page       = HR_CM_Overall_Trip_View::get_user_per_page();
+                $debug_enabled  = HR_CM_Overall_Trip_View::is_debug_enabled();
+                $timezone       = wp_timezone_string();
+                if (!$timezone) {
+                    $timezone_object = wp_timezone();
+                    $timezone        = ($timezone_object instanceof \DateTimeZone) ? $timezone_object->getName() : 'UTC';
+                }
+                $date_format    = get_option('date_format');
+                $date_format    = $date_format ? $date_format : 'F j, Y';
+
+                wp_localize_script(
+                    'hrcm-overall-trip-view',
+                    'hrcmOverallTripView',
+                    [
+                        'ajaxUrl'       => admin_url('admin-ajax.php'),
+                        'nonce'         => wp_create_nonce('hrcm_overall_trip_view'),
+                        'perPage'       => $per_page,
+                        'debugEnabled'  => $debug_enabled,
+                        'timezone'      => $timezone,
+                        'dateFormat'    => $date_format,
+                        'currentDate'   => current_time('Y-m-d'),
+                        'strings'       => [
+                            'searchPlaceholder' => __('Search trips by code or title…', 'hr-customer-manager'),
+                            'loading'           => __('Loading trips…', 'hr-customer-manager'),
+                            'empty'             => __('No trips match your filters.', 'hr-customer-manager'),
+                            'error'             => __('We were unable to load trips. Please try again.', 'hr-customer-manager'),
+                            'next'              => __('Next page', 'hr-customer-manager'),
+                            'previous'          => __('Previous page', 'hr-customer-manager'),
+                            'showing'           => __('Showing %1$s–%2$s of %3$s trips', 'hr-customer-manager'),
+                            'showingSingle'     => __('Showing %1$s of %2$s trips', 'hr-customer-manager'),
+                            'noNextDeparture'   => __('—', 'hr-customer-manager'),
+                            'daysToNext'        => __('%s days', 'hr-customer-manager'),
+                            'daysToNextSingle'  => __('%s day', 'hr-customer-manager'),
+                            'daysToNextToday'   => __('Today', 'hr-customer-manager'),
+                            'viewData'          => __('View data', 'hr-customer-manager'),
+                            'close'             => __('Close', 'hr-customer-manager'),
+                        ],
+                    ]
+                );
+            }
 
             wp_enqueue_script(
                 'hr-cm-admin',
@@ -296,10 +376,17 @@ if (!class_exists('HR_CM_Admin_Page')) {
         public function set_screen_option($status, $option, $value) {
             $automation_per_page_option = defined('HR_CM_Automations_List_Table::PER_PAGE_OPTION') ? HR_CM_Automations_List_Table::PER_PAGE_OPTION : 'hrcm_automations_per_page';
 
-            if (in_array($option, [HR_CM_Admin_Table::PER_PAGE_OPTION, $automation_per_page_option], true)) {
+            $trip_view_per_page_option = defined('HR_CM_Overall_Trip_View::PER_PAGE_OPTION') ? HR_CM_Overall_Trip_View::PER_PAGE_OPTION : 'hrcm_overall_trip_view_per_page';
+
+            $handled_options = [HR_CM_Admin_Table::PER_PAGE_OPTION, $automation_per_page_option, $trip_view_per_page_option];
+
+            if (in_array($option, $handled_options, true)) {
                 $default = HR_CM_Admin_Table::DEFAULT_PER_PAGE;
                 if ($automation_per_page_option === $option) {
                     $default = 20;
+                }
+                if ($trip_view_per_page_option === $option) {
+                    $default = HR_CM_Overall_Trip_View::DEFAULT_PER_PAGE;
                 }
 
                 $value = (int) $value;
@@ -352,6 +439,66 @@ if (!class_exists('HR_CM_Admin_Page')) {
         }
 
         /**
+         * Configure screen options for the overall trip view.
+         */
+        public function configure_overall_trip_view_screen() {
+            if (!current_user_can('manage_options')) {
+                return;
+            }
+
+            $screen = get_current_screen();
+            if (!$screen) {
+                return;
+            }
+
+            add_screen_option(
+                'per_page',
+                [
+                    'label'   => __('Trips per page', 'hr-customer-manager'),
+                    'default' => HR_CM_Overall_Trip_View::DEFAULT_PER_PAGE,
+                    'option'  => HR_CM_Overall_Trip_View::PER_PAGE_OPTION,
+                ]
+            );
+
+            if (!$this->overall_screen_settings_added) {
+                add_filter('screen_settings', [$this, 'render_overall_trip_view_screen_settings'], 10, 2);
+                $this->overall_screen_settings_added = true;
+            }
+
+            if (isset($_POST['screen-options-apply'])) {
+                check_admin_referer('screen-options-nonce', 'screenoptionnonce');
+                $debug_enabled = false;
+                if (isset($_POST['hrcm_overall_trip_view_debug'])) {
+                    $debug_enabled = '1' === wp_unslash($_POST['hrcm_overall_trip_view_debug']);
+                }
+                HR_CM_Overall_Trip_View::set_debug_enabled($debug_enabled);
+            }
+        }
+
+        /**
+         * Render additional screen option settings for the trip view.
+         *
+         * @param string   $settings Current markup.
+         * @param WP_Screen $screen  Screen object.
+         *
+         * @return string
+         */
+        public function render_overall_trip_view_screen_settings($settings, $screen) {
+            if (!$screen || 'hr-customer-manager_page_hr-customer-manager-overall-trip-view' !== $screen->id) {
+                return $settings;
+            }
+
+            $debug_enabled = HR_CM_Overall_Trip_View::is_debug_enabled();
+
+            $settings .= '<fieldset class="hrcm-screen-option">';
+            $settings .= '<legend>' . esc_html__('Overall Trip View Options', 'hr-customer-manager') . '</legend>';
+            $settings .= '<label><input type="checkbox" name="hrcm_overall_trip_view_debug" value="1"' . checked($debug_enabled, true, false) . ' /> ' . esc_html__('Show debug JSON links', 'hr-customer-manager') . '</label>';
+            $settings .= '</fieldset>';
+
+            return $settings;
+        }
+
+        /**
          * Render the customer overview page.
          */
         public function render_customer_overview() {
@@ -363,6 +510,20 @@ if (!class_exists('HR_CM_Admin_Page')) {
             $data  = $table->prepare_data();
 
             include HR_CM_PLUGIN_DIR . 'admin/views/customer-overview.php';
+        }
+
+        /**
+         * Render the overall trip view screen.
+         */
+        public function render_overall_trip_view() {
+            if (!current_user_can('manage_options')) {
+                wp_die(__('You do not have permission to access this page.', 'hr-customer-manager'));
+            }
+
+            $per_page      = HR_CM_Overall_Trip_View::get_user_per_page();
+            $debug_enabled = HR_CM_Overall_Trip_View::is_debug_enabled();
+
+            include HR_CM_PLUGIN_DIR . 'admin/views/overall-trip-view.php';
         }
 
         /**
