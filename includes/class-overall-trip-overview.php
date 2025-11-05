@@ -5,605 +5,374 @@
  * @package HR_Customer_Manager
  */
 
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-if (!class_exists('HR_CM_Overall_Trip_Overview')) {
-    /**
-     * Prepares summary data for trip departures and bookings.
-     */
-    class HR_CM_Overall_Trip_Overview {
-        /**
-         * Option storing the indexed departures data.
-         */
-        const OPTION_KEY = 'wptravelengine_indexed_trips_by_dates';
-
-        /**
-         * Retrieve table data for the Overall view.
-         *
-         * @return array{
-         *     columns: string[],
-         *     rows: array<int, array{0:int,1:string,2:string,3:int,4:string,5:int|string,6:int,7:int}>
-         * }
-         */
-        public static function get_overall_table_data() {
-            $timezone = wp_timezone();
-            $today    = new DateTimeImmutable('today', $timezone);
-            $today_string = $today->format('Y-m-d');
-
-            $trips       = self::get_trip_index();
-            $departures  = self::build_departure_index($today_string, $timezone);
-            $booking_pax = self::aggregate_booking_pax($today_string, $timezone);
-
-            $columns = [
-                __('Trip Code', 'hr-customer-manager'),
-                __('Trip', 'hr-customer-manager'),
-                __('Country', 'hr-customer-manager'),
-                __('Departures', 'hr-customer-manager'),
-                __('Next Departure', 'hr-customer-manager'),
-                __('Days to Next', 'hr-customer-manager'),
-                __('Total Pax', 'hr-customer-manager'),
-                __('Pax on Next Departure', 'hr-customer-manager'),
-            ];
-
-            $rows = [];
-
-            foreach ($trips as $trip_id => $trip) {
-                $departure_info = isset($departures[$trip_id]) ? $departures[$trip_id] : [
-                    'dates' => [],
-                    'next'  => '',
-                ];
-
-                $dates = isset($departure_info['dates']) && is_array($departure_info['dates'])
-                    ? $departure_info['dates']
-                    : [];
-
-                $next_iso = isset($departure_info['next']) ? (string) $departure_info['next'] : '';
-
-                $departures_count = count($dates);
-
-                $next_display = '—';
-                $days_to_next = '—';
-
-                if ('' !== $next_iso) {
-                    $next_date = date_create_immutable($next_iso, $timezone);
-                    if (!$next_date) {
-                        $next_date = DateTimeImmutable::createFromFormat('Y-m-d', $next_iso, $timezone);
-                    }
-
-                    if ($next_date) {
-                        $timestamp   = $next_date->getTimestamp();
-                        $next_display = date_i18n('F j, Y', $timestamp);
-                        if ($next_date >= $today) {
-                            $interval     = $today->diff($next_date);
-                            $days_to_next = (int) $interval->format('%a');
-                        } else {
-                            $days_to_next = 0;
-                        }
-                    }
-                }
-
-                $pax_totals = isset($booking_pax[$trip_id]) ? $booking_pax[$trip_id] : [
-                    'total' => 0,
-                    'dates' => [],
-                ];
-
-                $total_pax = isset($pax_totals['total']) ? (int) $pax_totals['total'] : 0;
-                $pax_dates = isset($pax_totals['dates']) && is_array($pax_totals['dates']) ? $pax_totals['dates'] : [];
-                $pax_next  = 0;
-                if ('' !== $next_iso && isset($pax_dates[$next_iso])) {
-                    $pax_next = (int) $pax_dates[$next_iso];
-                }
-
-                $rows[] = [
-                    (int) $trip_id,
-                    isset($trip['title']) ? $trip['title'] : '',
-                    isset($trip['country']) ? $trip['country'] : '',
-                    $departures_count,
-                    $next_display,
-                    $days_to_next,
-                    $total_pax,
-                    $pax_next,
-                ];
-            }
-
-            return [
-                'columns' => $columns,
-                'rows'    => $rows,
-            ];
-        }
-
-        /**
-         * Retrieve an index of published trips.
-         *
-         * @return array<int, array{title:string, country:string}>
-         */
-        private static function get_trip_index() {
-            if (!class_exists('WP_Query')) {
-                return [];
-            }
-
-            $trips = [];
-            $paged = 1;
-            $per_page = 100;
-
-            do {
-                $query = new WP_Query([
-                    'post_type'      => 'trip',
-                    'post_status'    => 'publish',
-                    'posts_per_page' => $per_page,
-                    'paged'          => $paged,
-                    'fields'         => 'ids',
-                    'orderby'        => 'title',
-                    'order'          => 'ASC',
-                    'no_found_rows'  => true,
-                ]);
-
-                if (!$query->have_posts()) {
-                    break;
-                }
-
-                foreach ($query->posts as $trip_id) {
-                    $trip_id = (int) $trip_id;
-                    if ($trip_id <= 0) {
-                        continue;
-                    }
-
-                    $trips[$trip_id] = [
-                        'title'   => get_the_title($trip_id),
-                        'country' => self::get_trip_country($trip_id),
-                    ];
-                }
-
-                $paged++;
-            } while ($query->post_count === $per_page);
-
-            return $trips;
-        }
-
-        /**
-         * Retrieve the country label for a trip.
-         *
-         * @param int $trip_id Trip post ID.
-         *
-         * @return string
-         */
-        private static function get_trip_country($trip_id) {
-            $taxonomies = ['country', 'destination'];
-
-            foreach ($taxonomies as $taxonomy) {
-                $terms = get_the_terms($trip_id, $taxonomy);
-                if (is_wp_error($terms) || empty($terms)) {
-                    continue;
-                }
-
-                $term = reset($terms);
-                if ($term && isset($term->name)) {
-                    return sanitize_text_field($term->name);
-                }
-            }
-
-            return '';
-        }
-
-        /**
-         * Build an index of future departures keyed by trip ID.
-         *
-         * @param string        $today_string Y-m-d for today in site TZ.
-         * @param DateTimeZone  $timezone     Site timezone.
-         *
-         * @return array<int, array{dates: string[], next: string}>
-         */
-        private static function build_departure_index($today_string, DateTimeZone $timezone) {
-            $raw_option = get_option(self::OPTION_KEY, []);
-            $data       = self::parse_mixed_value($raw_option);
-
-            if (!is_array($data)) {
-                return [];
-            }
-
-            $index = [];
-
-            foreach ($data as $entries) {
-                $entries = self::parse_mixed_value($entries);
-                if (!is_array($entries)) {
-                    continue;
-                }
-
-                foreach ($entries as $entry) {
-                    if (!is_array($entry)) {
-                        continue;
-                    }
-
-                    $trip_id = self::extract_trip_id($entry);
-                    if ($trip_id <= 0) {
-                        continue;
-                    }
-
-                    $date_raw = self::extract_trip_date($entry);
-                    $date_iso = self::normalize_date($date_raw, $timezone);
-
-                    if ('' === $date_iso || $date_iso < $today_string) {
-                        continue;
-                    }
-
-                    if (!isset($index[$trip_id])) {
-                        $index[$trip_id] = [
-                            'dates' => [],
-                            'next'  => '',
-                        ];
-                    }
-
-                    $index[$trip_id]['dates'][] = $date_iso;
-                }
-            }
-
-            foreach ($index as $trip_id => $info) {
-                $dates = array_values(array_filter(array_map('strval', $info['dates'])));
-                $dates = array_unique($dates);
-                sort($dates);
-
-                $index[$trip_id] = [
-                    'dates' => $dates,
-                    'next'  => isset($dates[0]) ? $dates[0] : '',
-                ];
-            }
-
-            return $index;
-        }
-
-        /**
-         * Aggregate passenger totals for future bookings.
-         *
-         * @param string        $today_string Y-m-d for today in site TZ.
-         * @param DateTimeZone  $timezone     Site timezone.
-         *
-         * @return array<int, array{total:int, dates: array<string,int>}>
-         */
-        private static function aggregate_booking_pax($today_string, DateTimeZone $timezone) {
-            if (!class_exists('WP_Query')) {
-                return [];
-            }
-
-            $booking_ids = self::get_booking_ids();
-            if (empty($booking_ids)) {
-                return [];
-            }
-
-            update_meta_cache('post', $booking_ids);
-
-            $totals = [];
-            $excluded_statuses = ['cancelled', 'refunded'];
-
-            foreach ($booking_ids as $booking_id) {
-                $booking_id = (int) $booking_id;
-                if ($booking_id <= 0) {
-                    continue;
-                }
-
-                $status = get_post_meta($booking_id, 'wp_travel_engine_booking_status', true);
-                if (is_string($status)) {
-                    $status = sanitize_key($status);
-                } else {
-                    $status = '';
-                }
-
-                if (in_array($status, $excluded_statuses, true)) {
-                    continue;
-                }
-
-                $trip_context = self::extract_booking_trip($booking_id, $timezone);
-                if (empty($trip_context)) {
-                    continue;
-                }
-
-                $trip_id = (int) $trip_context['trip_id'];
-                $date_iso = (string) $trip_context['date'];
-                $pax      = (int) $trip_context['pax'];
-
-                if ($trip_id <= 0 || '' === $date_iso || $date_iso < $today_string || $pax <= 0) {
-                    continue;
-                }
-
-                if (!isset($totals[$trip_id])) {
-                    $totals[$trip_id] = [
-                        'total' => 0,
-                        'dates' => [],
-                    ];
-                }
-
-                $totals[$trip_id]['total'] += $pax;
-
-                if (!isset($totals[$trip_id]['dates'][$date_iso])) {
-                    $totals[$trip_id]['dates'][$date_iso] = 0;
-                }
-
-                $totals[$trip_id]['dates'][$date_iso] += $pax;
-            }
-
-            return $totals;
-        }
-
-        /**
-         * Retrieve all booking IDs for aggregation.
-         *
-         * @return int[]
-         */
-        private static function get_booking_ids() {
-            $ids      = [];
-            $paged    = 1;
-            $per_page = 200;
-
-            do {
-                $query = new WP_Query([
-                    'post_type'      => 'booking',
-                    'post_status'    => 'any',
-                    'posts_per_page' => $per_page,
-                    'paged'          => $paged,
-                    'fields'         => 'ids',
-                    'no_found_rows'  => true,
-                    'orderby'        => 'ID',
-                    'order'          => 'ASC',
-                ]);
-
-                if (!$query->have_posts()) {
-                    break;
-                }
-
-                foreach ($query->posts as $booking_id) {
-                    $ids[] = (int) $booking_id;
-                }
-
-                $paged++;
-            } while ($query->post_count === $per_page);
-
-            return $ids;
-        }
-
-        /**
-         * Extract normalized trip info for a booking.
-         *
-         * @param int           $booking_id Booking post ID.
-         * @param DateTimeZone  $timezone   Site timezone.
-         *
-         * @return array{trip_id:int,date:string,pax:int}|null
-         */
-        private static function extract_booking_trip($booking_id, DateTimeZone $timezone) {
-            $order_trips_meta = get_post_meta($booking_id, 'order_trips', true);
-
-            if (empty($order_trips_meta)) {
-                error_log(sprintf('HR_CM overall trip overview: Missing order_trips for booking %d', $booking_id));
-                return null;
-            }
-
-            $order_trips = self::parse_mixed_value($order_trips_meta);
-
-            if (!is_array($order_trips) || empty($order_trips)) {
-                error_log(sprintf('HR_CM overall trip overview: Malformed order_trips for booking %d', $booking_id));
-                return null;
-            }
-
-            $first_trip = null;
-            foreach ($order_trips as $item) {
-                if (is_array($item)) {
-                    $first_trip = $item;
-                    break;
-                }
-            }
-
-            if (!is_array($first_trip)) {
-                error_log(sprintf('HR_CM overall trip overview: No trip entry found in order_trips for booking %d', $booking_id));
-                return null;
-            }
-
-            $trip_id = self::extract_trip_id($first_trip);
-            if ($trip_id <= 0 && isset($first_trip['_cart_item_object']) && is_array($first_trip['_cart_item_object'])) {
-                $trip_id = self::extract_trip_id($first_trip['_cart_item_object']);
-            }
-
-            if ($trip_id <= 0) {
-                error_log(sprintf('HR_CM overall trip overview: Unable to resolve trip_id for booking %d', $booking_id));
-                return null;
-            }
-
-            $date_raw = self::extract_trip_date($first_trip);
-            if ('' === $date_raw && isset($first_trip['_cart_item_object']) && is_array($first_trip['_cart_item_object'])) {
-                $date_raw = self::extract_trip_date($first_trip['_cart_item_object']);
-            }
-
-            $date_iso = self::normalize_date($date_raw, $timezone);
-            if ('' === $date_iso) {
-                error_log(sprintf('HR_CM overall trip overview: Unable to parse trip date for booking %d', $booking_id));
-                return null;
-            }
-
-            $pax = self::sum_pax($first_trip);
-            if (0 === $pax && isset($first_trip['_cart_item_object']) && is_array($first_trip['_cart_item_object'])) {
-                $pax = self::sum_pax($first_trip['_cart_item_object']);
-            }
-
-            return [
-                'trip_id' => (int) $trip_id,
-                'date'    => $date_iso,
-                'pax'     => (int) $pax,
-            ];
-        }
-
-        /**
-         * Extract a trip identifier from a data entry.
-         *
-         * @param array $entry Trip entry data.
-         *
-         * @return int
-         */
-        private static function extract_trip_id(array $entry) {
-            $keys = ['trip_id', 'ID', 'id', 'tid', 'tripId'];
-            foreach ($keys as $key) {
-                if (isset($entry[$key])) {
-                    return (int) $entry[$key];
-                }
-            }
-
-            return 0;
-        }
-
-        /**
-         * Extract the raw trip date string.
-         *
-         * @param array $entry Trip entry data.
-         *
-         * @return string
-         */
-        private static function extract_trip_date(array $entry) {
-            $keys = ['datetime', 'trip_date', 'date', 'departure_date'];
-            foreach ($keys as $key) {
-                if (isset($entry[$key])) {
-                    return (string) $entry[$key];
-                }
-            }
-
-            return '';
-        }
-
-        /**
-         * Normalize a date string to ISO Y-m-d.
-         *
-         * @param string       $value    Raw date string.
-         * @param DateTimeZone $timezone Site timezone.
-         *
-         * @return string
-         */
-        private static function normalize_date($value, DateTimeZone $timezone) {
-            $value = is_string($value) ? trim($value) : '';
-            if ('' === $value) {
-                return '';
-            }
-
-            $date = date_create_immutable($value, $timezone);
-            if (!$date) {
-                $patterns = ['Y-m-d H:i:s', 'Y-m-d'];
-                foreach ($patterns as $pattern) {
-                    $date = DateTimeImmutable::createFromFormat($pattern, $value, $timezone);
-                    if ($date instanceof DateTimeImmutable) {
-                        break;
-                    }
-                }
-            }
-
-            if (!$date) {
-                if (preg_match('/(\d{4}-\d{2}-\d{2})/', $value, $matches)) {
-                    $date = date_create_immutable($matches[1], $timezone);
-                }
-            }
-
-            if (!$date) {
-                return '';
-            }
-
-            return $date->format('Y-m-d');
-        }
-
-        /**
-         * Sum passenger counts from an entry.
-         *
-         * @param array $entry Trip entry data.
-         *
-         * @return int
-         */
-        private static function sum_pax(array $entry) {
-            if (!isset($entry['pax'])) {
-                return 0;
-            }
-
-            $pax = self::parse_mixed_value($entry['pax']);
-            if (!is_array($pax)) {
-                return 0;
-            }
-
-            $total = 0;
-            foreach ($pax as $value) {
-                if (is_numeric($value)) {
-                    $total += (int) $value;
-                }
-            }
-
-            return $total;
-        }
-
-        /**
-         * Parse mixed values that may be serialized or JSON.
-         *
-         * @param mixed $value Raw value.
-         *
-         * @return mixed
-         */
-        private static function parse_mixed_value($value) {
-            if (is_array($value)) {
-                return $value;
-            }
-
-            if (is_object($value)) {
-                return json_decode(wp_json_encode($value), true);
-            }
-
-            if (!is_string($value)) {
-                return $value;
-            }
-
-            $maybe_unserialized = maybe_unserialize($value);
-            if ($maybe_unserialized !== $value) {
-                return self::parse_mixed_value($maybe_unserialized);
-            }
-
-            $decoded = json_decode($value, true);
-            if (JSON_ERROR_NONE === json_last_error() && is_array($decoded)) {
-                return $decoded;
-            }
-
-            $trimmed = trim($value);
-            if ('' === $trimmed) {
-                return $trimmed;
-            }
-
-            if (self::is_json($trimmed)) {
-                $decoded = json_decode($trimmed, true);
-                if (JSON_ERROR_NONE === json_last_error() && is_array($decoded)) {
-                    return $decoded;
-                }
-            }
-
-            return $value;
-        }
-
-        /**
-         * Determine if a string appears to contain JSON.
-         *
-         * @param string $value Value to inspect.
-         *
-         * @return bool
-         */
-        private static function is_json($value) {
-            if (!is_string($value)) {
-                return false;
-            }
-
-            $value = preg_replace('/^\xEF\xBB\xBF/', '', $value);
-            $value = trim($value);
-
-            if ('' === $value) {
-                return false;
-            }
-
-            $decoded = json_decode($value, true);
-            if (JSON_ERROR_NONE === json_last_error() && is_array($decoded)) {
-                return true;
-            }
-
-            $first = substr($value, 0, 1);
-            $last  = substr($value, -1);
-
-            return ('{' === $first && '}' === $last) || ('[' === $first && ']' === $last);
-        }
-    }
+if ( ! class_exists( 'HR_CM_Overall_Trip_Overview' ) ) {
+	/**
+	 * Prepares summary data for trip departures and bookings.
+	 */
+	class HR_CM_Overall_Trip_Overview {
+
+		/**
+		 * Return the Overall tab table payload for AJAX.
+		 *
+		 * @return array{columns:array<int,string>,rows:array<int,array<int,mixed>>}
+		 */
+		public static function get_overall_table_data() {
+			$columns = array(
+				__('Trip Code','hr-customer-manager'),
+				__('Trip','hr-customer-manager'),
+				__('Country','hr-customer-manager'),
+				__('Departures','hr-customer-manager'),
+				__('Next Departure','hr-customer-manager'),
+				__('Days to Next','hr-customer-manager'),
+				__('Total Pax','hr-customer-manager'),
+				__('Pax on Next Departure','hr-customer-manager'),
+			);
+
+			// Build indexes we need.
+			$tz              = wp_timezone();
+			$today_dt        = new DateTimeImmutable( current_time('Y-m-d'), $tz );
+			$depart_idx      = self::build_departure_index();
+			$dates_by_trip   = $depart_idx['dates_by_trip'];
+			$next_by_trip    = $depart_idx['next_by_trip'];
+			$trip_index      = self::get_trip_index();
+			$booking_ids     = self::get_booking_ids();
+			$pax_aggregates  = self::aggregate_booking_pax( $booking_ids, $today_dt );
+
+			$rows = array();
+
+			foreach ( $trip_index as $trip_id => $trip ) {
+				$dates            = isset( $dates_by_trip[ $trip_id ] ) ? $dates_by_trip[ $trip_id ] : array();
+				$departures_count = count( $dates );
+
+				$next_iso  = isset( $next_by_trip[ $trip_id ] ) ? $next_by_trip[ $trip_id ] : null;
+				$next_disp = $next_iso ? date_i18n( 'F j, Y', ( new DateTimeImmutable( $next_iso, $tz ) )->getTimestamp() ) : '—';
+				$days_to   = '—';
+				if ( $next_iso ) {
+					$next_dt = new DateTimeImmutable( $next_iso, $tz );
+					$days_to = (string) $today_dt->diff( $next_dt )->days;
+				}
+
+				// Pax totals.
+				$pax_tot   = isset( $pax_aggregates['by_trip'][ $trip_id ] ) ? (int) $pax_aggregates['by_trip'][ $trip_id ] : 0;
+				$pax_dates = isset( $pax_aggregates['by_trip_date'][ $trip_id ] ) && is_array( $pax_aggregates['by_trip_date'][ $trip_id ] )
+					? $pax_aggregates['by_trip_date'][ $trip_id ]
+					: array();
+				$pax_next  = ( $next_iso && isset( $pax_dates[ $next_iso ] ) ) ? (int) $pax_dates[ $next_iso ] : 0;
+
+				$rows[] = array(
+					(int) $trip_id,
+					isset($trip['title']) ? $trip['title'] : '',
+					isset($trip['country']) ? $trip['country'] : '',
+					$departures_count,
+					$next_disp,
+					$days_to,
+					$pax_tot,
+					$pax_next,
+				);
+			}
+
+			return array(
+				'columns' => $columns,
+				'rows'    => $rows,
+			);
+		}
+
+		/**
+		 * Build index of future departures by trip, using the global option
+		 * wptravelengine_indexed_trips_by_dates (month-keyed: YYYY-MM => [ {trip_id,date,...}, ... ]).
+		 * Availability (seats/capacity) is ignored by design.
+		 *
+		 * @return array{dates_by_trip:array<int,array<int,string>>, next_by_trip:array<int,string>}
+		 */
+		private static function build_departure_index() {
+			$raw  = get_option( 'wptravelengine_indexed_trips_by_dates' );
+			$data = self::parse_mixed_value( $raw );
+
+			if ( ! is_array( $data ) ) {
+				return array( 'dates_by_trip' => array(), 'next_by_trip' => array() );
+			}
+
+			$tz     = wp_timezone();
+			$today  = new DateTimeImmutable( current_time( 'Y-m-d' ), $tz );
+			$byTrip = array();
+
+			// The option is keyed by YYYY-MM. Iterate each month bucket.
+			foreach ( $data as $ym => $entries ) {
+				if ( ! is_array( $entries ) ) {
+					continue;
+				}
+				foreach ( $entries as $row ) {
+					if ( ! is_array( $row ) ) {
+						continue;
+					}
+					$tid  = isset( $row['trip_id'] ) ? (int) $row['trip_id'] : 0;
+					$iso  = isset( $row['date'] ) ? (string) $row['date'] : '';
+					if ( $tid <= 0 || $iso === '' ) {
+						continue;
+					}
+
+					try {
+						$d = new DateTimeImmutable( $iso, $tz );
+					} catch ( \Throwable $e ) {
+						continue;
+					}
+					if ( $d < $today ) {
+						continue; // future only
+					}
+
+					$byTrip[ $tid ][] = $d->format( 'Y-m-d' );
+				}
+			}
+
+			// Sort and pick "next" for each trip.
+			$next = array();
+			foreach ( $byTrip as $tid => $dates ) {
+				$dates = array_values( array_unique( $dates ) );
+				sort( $dates ); // ISO dates sort lexicographically
+				$byTrip[ $tid ] = $dates;
+				if ( ! empty( $dates ) ) {
+					$next[ $tid ] = $dates[0];
+				}
+			}
+
+			return array(
+				'dates_by_trip' => $byTrip,
+				'next_by_trip'  => $next,
+			);
+		}
+
+		/**
+		 * Get an index of all published trips.
+		 *
+		 * @return array<int,array{title:string,country:string}>
+		 */
+		private static function get_trip_index() {
+			$index = array();
+
+			$q = new WP_Query( array(
+				'post_type'      => 'trip',
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'orderby'        => 'ID',
+				'order'          => 'ASC',
+				'no_found_rows'  => true,
+			) );
+
+			if ( empty( $q->posts ) ) {
+				return $index;
+			}
+
+			foreach ( $q->posts as $trip_id ) {
+				$title   = get_the_title( $trip_id );
+				$country = self::get_trip_country( $trip_id );
+				$index[ (int) $trip_id ] = array(
+					'title'   => is_string($title) ? $title : '',
+					'country' => $country,
+				);
+			}
+
+			return $index;
+		}
+
+		/**
+		 * Best-effort country label for a trip.
+		 */
+		private static function get_trip_country( $trip_id ) {
+			$tax_candidates = array( 'country', 'destination' );
+			foreach ( $tax_candidates as $tax ) {
+				if ( taxonomy_exists( $tax ) ) {
+					$terms = get_the_terms( $trip_id, $tax );
+					if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
+						$term = array_shift( $terms );
+						return is_object($term) ? $term->name : '';
+					}
+				}
+			}
+			// Fallback: try configured taxonomy name in options (if available).
+			$opt_tax = get_option( 'wptravelengine_triptag_tax' );
+			if ( is_string( $opt_tax ) && taxonomy_exists( $opt_tax ) ) {
+				$terms = get_the_terms( $trip_id, $opt_tax );
+				if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
+					$term = array_shift( $terms );
+					return is_object($term) ? $term->name : '';
+				}
+			}
+			return '';
+		}
+
+		/**
+		 * Return booking post IDs (for aggregation).
+		 *
+		 * @return int[]
+		 */
+		private static function get_booking_ids() {
+			$q = new WP_Query( array(
+				'post_type'      => 'booking',
+				'post_status'    => 'any',
+				'fields'         => 'ids',
+				'posts_per_page' => -1,
+				'no_found_rows'  => true,
+			) );
+			return $q->posts ? array_map( 'intval', $q->posts ) : array();
+		}
+
+		/**
+		 * Aggregate pax per trip and per {trip,date} from booking metas (future only).
+		 *
+		 * @param int[]                $booking_ids
+		 * @param DateTimeImmutable    $today_dt
+		 * @return array{by_trip:array<int,int>, by_trip_date:array<int,array<string,int>>}
+		 */
+		private static function aggregate_booking_pax( $booking_ids, $today_dt ) {
+			$by_trip      = array();
+			$by_trip_date = array();
+
+			foreach ( $booking_ids as $bid ) {
+				$trip_id  = self::extract_trip_id( $bid );
+				$trip_date= self::extract_trip_date( $bid );
+				if ( ! $trip_id || ! $trip_date ) {
+					continue;
+				}
+
+				try {
+					$dt = new DateTimeImmutable( $trip_date, wp_timezone() );
+				} catch ( \Throwable $e ) {
+					continue;
+				}
+				if ( $dt < $today_dt ) {
+					continue; // future only
+				}
+
+				$pax_map = self::extract_booking_pax( $bid );
+				$pax_sum = self::sum_pax( $pax_map );
+
+				if ( $pax_sum > 0 ) {
+					$by_trip[ $trip_id ] = isset( $by_trip[ $trip_id ] ) ? $by_trip[ $trip_id ] + $pax_sum : $pax_sum;
+					if ( ! isset( $by_trip_date[ $trip_id ] ) ) {
+						$by_trip_date[ $trip_id ] = array();
+					}
+					$iso = $dt->format( 'Y-m-d' );
+					$by_trip_date[ $trip_id ][ $iso ] = isset( $by_trip_date[ $trip_id ][ $iso ] )
+						? $by_trip_date[ $trip_id ][ $iso ] + $pax_sum
+						: $pax_sum;
+				}
+			}
+
+			return array(
+				'by_trip'      => $by_trip,
+				'by_trip_date' => $by_trip_date,
+			);
+		}
+
+		/**
+		 * Extract the first order_trips item for a booking.
+		 *
+		 * @param int $booking_id
+		 * @return array<string,mixed>|null
+		 */
+		private static function extract_booking_trip( $booking_id ) {
+			$raw = get_post_meta( $booking_id, 'order_trips', true );
+			$val = self::parse_mixed_value( $raw );
+			if ( is_array( $val ) ) {
+				$first = reset( $val );
+				if ( is_array( $first ) ) {
+					return $first;
+				}
+			}
+			return null;
+		}
+
+		private static function extract_trip_id( $booking_id ) {
+			$item = self::extract_booking_trip( $booking_id );
+			if ( ! $item ) return 0;
+			if ( isset( $item['ID'] ) ) return (int) $item['ID'];
+			if ( isset( $item['_cart_item_object']['trip_id'] ) ) return (int) $item['_cart_item_object']['trip_id'];
+			return 0;
+		}
+
+		private static function extract_trip_date( $booking_id ) {
+			$item = self::extract_booking_trip( $booking_id );
+			if ( ! $item ) return '';
+			if ( isset( $item['datetime'] ) ) return self::normalize_date( $item['datetime'] );
+			if ( isset( $item['_cart_item_object']['trip_date'] ) ) return self::normalize_date( $item['_cart_item_object']['trip_date'] );
+			return '';
+		}
+
+		private static function extract_booking_pax( $booking_id ) {
+			$item = self::extract_booking_trip( $booking_id );
+			if ( ! $item ) return array();
+			if ( isset( $item['pax'] ) && is_array( $item['pax'] ) ) return $item['pax'];
+			if ( isset( $item['_cart_item_object']['pax'] ) && is_array( $item['_cart_item_object']['pax'] ) ) return $item['_cart_item_object']['pax'];
+			return array();
+		}
+
+		private static function sum_pax( $pax_map ) {
+			$total = 0;
+			if ( is_array( $pax_map ) ) {
+				foreach ( $pax_map as $v ) {
+					$total += (int) $v;
+				}
+			}
+			return $total;
+		}
+
+		/**
+		 * Normalize date string to Y-m-d.
+		 */
+		private static function normalize_date( $date_string ) {
+			try {
+				$dt = new DateTimeImmutable( (string) $date_string, wp_timezone() );
+				return $dt->format( 'Y-m-d' );
+			} catch ( \Throwable $e ) {
+				return '';
+			}
+		}
+
+		/**
+		 * Robustly parse a value that might be serialized PHP, JSON, or plain scalar.
+		 * Returns arrays/objects as PHP arrays; scalars as-is.
+		 *
+		 * @param mixed $value
+		 * @return mixed
+		 */
+		private static function parse_mixed_value( $value ) {
+			// Already array.
+			if ( is_array( $value ) ) {
+				return $value;
+			}
+			// Objects -> array.
+			if ( is_object( $value ) ) {
+				return json_decode( wp_json_encode( $value ), true );
+			}
+			// Non-string scalars.
+			if ( ! is_string( $value ) ) {
+				return $value;
+			}
+
+			// Try unserialize first (WTE stores PHP serialized often).
+			$maybe = @maybe_unserialize( $value );
+			if ( $maybe !== $value ) {
+				return self::parse_mixed_value( $maybe );
+			}
+
+			// Strip BOM and whitespace before attempting JSON decode.
+			$clean = preg_replace( '/^\xEF\xBB\xBF/', '', $value );
+			$clean = trim( (string) $clean );
+
+			if ( $clean !== '' ) {
+				$decoded = json_decode( $clean, true );
+				if ( json_last_error() === JSON_ERROR_NONE && ( is_array( $decoded ) || is_object( $decoded ) ) ) {
+					return (array) $decoded;
+				}
+			}
+
+			// Fallback: raw string/scalar.
+			return $value;
+		}
+	}
 }
