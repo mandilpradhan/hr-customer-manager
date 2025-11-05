@@ -57,6 +57,7 @@ if (!class_exists('HR_CM_Admin_Page')) {
             add_action('admin_menu', [$this, 'register_menu']);
             add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
             add_action('wp_ajax_hrcm_get_departures', [$this, 'ajax_get_departures']);
+            add_action('wp_ajax_hrcm_overall_trip_overview', [$this, 'ajax_overall_trip_overview']);
             add_filter('set-screen-option', [$this, 'set_screen_option'], 10, 3);
 
             HR_CM_Automations_Admin::instance();
@@ -106,6 +107,16 @@ if (!class_exists('HR_CM_Admin_Page')) {
             );
             $this->screen_hooks[] = $automation_hook;
             add_action('load-' . $automation_hook, [$this, 'configure_automation_screen']);
+
+            $overall_trip_hook = add_submenu_page(
+                $parent_slug,
+                __('Overall Trip Overview', 'hr-customer-manager'),
+                __('Overall Trip Overview', 'hr-customer-manager'),
+                'manage_options',
+                'hrcm_overall_trip_overview',
+                [$this, 'render_overall_trip_overview']
+            );
+            $this->screen_hooks[] = $overall_trip_hook;
 
             $templates_hook = add_submenu_page(
                 $parent_slug,
@@ -185,6 +196,33 @@ if (!class_exists('HR_CM_Admin_Page')) {
                     'departuresNonce' => wp_create_nonce('hrcm_get_departures'),
                 ]
             );
+
+            if ('hr-customer-manager_page_hrcm_overall_trip_overview' === $hook_suffix) {
+                wp_enqueue_script(
+                    'hrcm-overall-trip',
+                    HR_CM_PLUGIN_URL . 'admin/assets/js/hrcm-overall-trip.js',
+                    ['jquery'],
+                    HR_CM_VERSION,
+                    true
+                );
+
+                wp_localize_script(
+                    'hrcm-overall-trip',
+                    'hrCmOverallTrip',
+                    [
+                        'ajaxUrl'  => admin_url('admin-ajax.php'),
+                        'nonce'    => wp_create_nonce('hrcm_overall_trip_overview'),
+                        'viewMap'  => [
+                            'overall' => 'hrcm_overall_trip_overview',
+                        ],
+                        'strings'  => [
+                            'loading' => __('Loading…', 'hr-customer-manager'),
+                            'error'   => __('Unable to load data. Please try again.', 'hr-customer-manager'),
+                            'empty'   => __('No trips found.', 'hr-customer-manager'),
+                        ],
+                    ]
+                );
+            }
         }
 
         /**
@@ -296,6 +334,26 @@ if (!class_exists('HR_CM_Admin_Page')) {
         }
 
         /**
+         * Handle AJAX requests for the Overall Trip Overview table.
+         *
+         * Data sources:
+         * - Option `wptravelengine_indexed_trips_by_dates`
+         * - Published `trip` posts (taxonomy: country, destination)
+         * - `booking` posts and meta keys: `order_trips`, `wp_travel_engine_booking_status`
+         */
+        public function ajax_overall_trip_overview() {
+            if (!current_user_can('manage_options')) {
+                wp_send_json_error(['message' => __('Unauthorized', 'hr-customer-manager')], 403);
+            }
+
+            check_ajax_referer('hrcm_overall_trip_overview', 'nonce');
+
+            $data = HR_CM_Overall_Trip_Overview::get_overall_table_data();
+
+            wp_send_json_success($data);
+        }
+
+        /**
          * Render the customer overview page.
          */
         public function render_customer_overview() {
@@ -307,6 +365,17 @@ if (!class_exists('HR_CM_Admin_Page')) {
             $data  = $table->prepare_data();
 
             include HR_CM_PLUGIN_DIR . 'admin/views/customer-overview.php';
+        }
+
+        /**
+         * Render the Overall Trip Overview shell.
+         */
+        public function render_overall_trip_overview() {
+            if (!current_user_can('manage_options')) {
+                wp_die(__('You do not have permission to access this page.', 'hr-customer-manager'));
+            }
+
+            include HR_CM_PLUGIN_DIR . 'admin/views/overall-trip-overview.php';
         }
 
         /**
