@@ -556,14 +556,19 @@ if (!class_exists('HR_CM_Overall_Trip_Overview')) {
                 return self::parse_mixed_value($maybe_unserialized);
             }
 
+            $decoded = json_decode($value, true);
+            if (JSON_ERROR_NONE === json_last_error() && is_array($decoded)) {
+                return $decoded;
+            }
+
             $trimmed = trim($value);
             if ('' === $trimmed) {
                 return $trimmed;
             }
 
-            if (self::looks_like_json($trimmed)) {
+            if (self::is_json($trimmed)) {
                 $decoded = json_decode($trimmed, true);
-                if (JSON_ERROR_NONE === json_last_error()) {
+                if (JSON_ERROR_NONE === json_last_error() && is_array($decoded)) {
                     return $decoded;
                 }
             }
@@ -578,14 +583,21 @@ if (!class_exists('HR_CM_Overall_Trip_Overview')) {
          *
          * @return bool
          */
-        private static function looks_like_json($value) {
+        private static function is_json($value) {
             if (!is_string($value)) {
                 return false;
             }
 
-            $value = ltrim($value);
+            $value = preg_replace('/^\xEF\xBB\xBF/', '', $value);
+            $value = trim($value);
+
             if ('' === $value) {
                 return false;
+            }
+
+            $decoded = json_decode($value, true);
+            if (JSON_ERROR_NONE === json_last_error() && is_array($decoded)) {
+                return true;
             }
 
             $first = substr($value, 0, 1);
