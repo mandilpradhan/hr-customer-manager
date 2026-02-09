@@ -1,0 +1,22 @@
+﻿Template Alias,Booking,Contact,Recipient Email,Delivery Event,Execution,Email Override,Resend,Sender Status,Error Message,Created At,Last Modified
+payment-notification-1,"""1954 | Test Trip | Apr 22, 2026""",Mandil Pradhan,mandil.pradhan@gmail.com,Email Opened,Automated,,,Sent,,2/8/2026 4:03pm,2/8/2026 4:59pm
+payment-notification-1,"""1963 | Test Trip | Apr 22, 2026""",Amshu Dali,dali.amshu@gmail.com,Email Opened,Automated,,,Sent,,2/8/2026 4:03pm,2/9/2026 8:53am
+payment-notification-1,"""1951 | Test Trip | Apr 22, 2026""",Carlos Dali Pradhan,carlos@himalayanrides.com,Unopened,Automated,,,Sent,,2/8/2026 4:03pm,2/8/2026 4:03pm
+payment-notification-1,"""1959 | Test Trip | Apr 22, 2026""",Amshu Dali,ampshoe@gmail.com,Unopened,Automated,,,Sent,,2/8/2026 4:03pm,2/8/2026 4:03pm
+payment-notification-1,"""1957 | Test Trip | Apr 22, 2026""",Mandira Pradhan,mandil.pradhan@gmail.com,Email Opened,Automated,,,Sent,,2/8/2026 4:03pm,2/8/2026 4:59pm
+booking-updated,"""1963 | Test Trip | Apr 22, 2026""",Amshu Dali,dali.amshu@gmail.com,Email Opened,WTE Automated,,,Sent,,2/7/2026 11:01pm,2/7/2026 11:02pm
+booking-updated,"""1959 | Test Trip | Apr 22, 2026""",Amshu Dali,ampshoe@gmail.com,Email Opened,WTE Automated,,,Sent,,2/7/2026 10:42pm,2/7/2026 10:43pm
+booking-confirmation,"""1957 | Test Trip | Apr 22, 2026""",Mandira Pradhan,mandil.pradhan@gmail.com,Email Opened,WTE Automated,,,Sent,,2/7/2026 10:41pm,2/7/2026 10:42pm
+booking-confirmation,"""1954 | Test Trip | Apr 22, 2026""",Mandil Pradhan,mandil.pradhan@gmail.com,Email Opened,WTE Automated,,,Sent,,2/7/2026 10:37pm,2/7/2026 10:38pm
+booking-confirmation,"""1951 | Test Trip | Apr 22, 2026""",Carlos Dali Pradhan,carlos@himalayanrides.com,Email Opened,WTE Automated,,,Sent,,2/7/2026 10:35pm,2/7/2026 10:36pm
+payment-notification-1,"""1963 | Test Trip | Apr 22, 2026""",Carlos Pradhan,carlos@himalayanrides.com,Unopened,Automated,,,Sent,,2/7/2026 4:02pm,2/7/2026 4:02pm
+payment-notification-1,"""1898 | Test Trip | Apr 22, 2026""",Amshu Dali,dali.amshu@gmail.com,Email Opened,Automated,,,Sent,,2/7/2026 4:02pm,2/7/2026 10:50pm
+payment-notification-1,"""1955 | Test Trip | Apr 22, 2026""",Mandil Pradhan,mandil.pradhan@gmail.com,Email Opened,Automated,,,Sent,,2/7/2026 4:02pm,2/7/2026 4:25pm
+payment-notification-1,"""1959 | Test Trip | Apr 22, 2026""",Mandil Pradhan,info@himalayanrides.com,Unopened,Automated,,,Sent,,2/7/2026 4:02pm,2/7/2026 4:02pm
+booking-confirmation,"""1963 | Test Trip | Apr 22, 2026""",Carlos Pradhan,carlos@himalayanrides.com,Unopened,WTE Automated,,,Sent,,2/7/2026 2:34pm,2/7/2026 2:34pm
+booking-confirmation,"""1959 | Test Trip | Apr 22, 2026""",Mandil Pradhan,info@himalayanrides.com,Email Opened,WTE Automated,,,Sent,,2/7/2026 12:11pm,2/7/2026 12:13pm
+booking-confirmation,"""1955 | Test Trip | Apr 22, 2026""",Mandil Pradhan,mandil.pradhan@gmail.com,Email Opened,WTE Automated,,,Sent,,2/7/2026 11:38am,2/7/2026 11:39am
+booking-confirmation,"""1898 | Test Trip | Apr 22, 2026""",Amshu Dali,dali.amshu@gmail.com,Email Opened,WTE Automated,,,Sent,,2/6/2026 1:58pm,2/6/2026 2:04pm
+booking-updated,"""1542 | The Triple Crown | Oct 05, 2026""",William (Bill) MCKENZIE,ourwully@gmail.com,Unopened,WTE Automated,,,Sent,,1/26/2026 4:54pm,1/26/2026 4:54pm
+post-booking-timeline,"""1542 | The Triple Crown | Oct 05, 2026""",William (Bill) MCKENZIE,ourwully@gmail.com,Unopened,Automated,,,Sent,,1/26/2026 4:02pm,1/26/2026 5:54pm
+booking-confirmation,"""1542 | The Triple Crown | Oct 05, 2026""",William (Bill) MCKENZIE,ourwully@gmail.com,Unopened,WTE Automated,,,Sent,,1/26/2026 3:00pm,1/26/2026 3:00pm

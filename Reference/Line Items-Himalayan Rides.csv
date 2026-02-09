@@ -1,0 +1,14 @@
+﻿Item Name,Item Category,Primary Contact (from Bookings),Quantity,Booking ID,Bookings,Departures,Item Quantity String,Created,Last Sync
+Rider,Core,William (Bill) MCKENZIE,1,1542,"""1542 | The Triple Crown | Oct 05, 2026""","""October 5, 2026""",Rider - 1,1/26/2026 3:00pm,1/26/2026 8:07pm
+Everest Sightseeing Flight,Extra,William (Bill) MCKENZIE,1,1542,"""1542 | The Triple Crown | Oct 05, 2026""","""October 5, 2026""",Everest Sightseeing Flight - 1,1/26/2026 3:00pm,1/26/2026 8:07pm
+Rider,Core,Amshu Dali,1,1898,"""1898 | Test Trip | Apr 22, 2026""","""April 22, 2026""",Rider - 1,2/6/2026 2:02pm,2/6/2026 8:17am
+Pillion,Core,Amshu Dali,1,1898,"""1898 | Test Trip | Apr 22, 2026""","""April 22, 2026""",Pillion - 1,2/6/2026 2:02pm,2/6/2026 8:17am
+Rider,Core,Mandil Pradhan,1,1955,"""1955 | Test Trip | Apr 22, 2026""","""April 22, 2026""",Rider - 1,2/7/2026 11:38am,2/7/2026 5:53am
+Pillion,Core,Mandil Pradhan,1,1955,"""1955 | Test Trip | Apr 22, 2026""","""April 22, 2026""",Pillion - 1,2/7/2026 11:38am,2/7/2026 5:53am
+Rider,Core,Amshu Dali,1,1959,"""1959 | Test Trip | Apr 22, 2026""","""April 22, 2026""",Rider - 1,2/7/2026 12:11pm,2/7/2026 4:56pm
+Rider,Core,Amshu Dali,1,1963,"""1963 | Test Trip | Apr 22, 2026""","""April 22, 2026""",Rider - 1,2/7/2026 2:34pm,2/7/2026 5:16pm
+Pillion,Core,Amshu Dali,1,1963,"""1963 | Test Trip | Apr 22, 2026""","""April 22, 2026""",Pillion - 1,2/7/2026 2:34pm,2/7/2026 8:49am
+Rider,Core,Carlos Dali Pradhan,1,1951,"""1951 | Test Trip | Apr 22, 2026""","""April 22, 2026""",Rider - 1,2/7/2026 10:35pm,2/7/2026 4:50pm
+Pillion,Core,Carlos Dali Pradhan,1,1951,"""1951 | Test Trip | Apr 22, 2026""","""April 22, 2026""",Pillion - 1,2/7/2026 10:35pm,2/7/2026 4:50pm
+Rider,Core,Mandil Pradhan,1,1954,"""1954 | Test Trip | Apr 22, 2026""","""April 22, 2026""",Rider - 1,2/7/2026 10:37pm,2/7/2026 4:52pm
+Rider,Core,Mandira Pradhan,1,1957,"""1957 | Test Trip | Apr 22, 2026""","""April 22, 2026""",Rider - 1,2/7/2026 10:41pm,2/7/2026 4:56pm

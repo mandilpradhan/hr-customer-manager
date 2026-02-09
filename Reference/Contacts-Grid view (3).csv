@@ -1,0 +1,61 @@
+﻿Customer Name,First Name,Last Name,Email,Phone,Contact ID,Booking Contact Type,Tours Interested In,General Contact Type,Messages,Contact Status,Bookings as Traveler,Bookings as Customer,Payments,Remaining Payment Link,Address,City,Country,Billing Name,Billing Email,Billing Address,Billing City,Billing Country,Traveler Number,Source,Prefer to Talk?,Last Sync,Booking ID,Total Booking Amount Rollup (from Bookings as Customer),Traveler Information,Billing Array,Mute System Notifications,Manual Payments,Automated Email Logs,Created
+William (Bill) MCKENZIE,William,(Bill) MCKENZIE,ourwully@gmail.com,(905) 965-6763,william_bill_mckenzie_ourwully@gmail.com,"Customer,Traveler",,,,Active,"""1542 | The Triple Crown | Oct 05, 2026""","""1542 | The Triple Crown | Oct 05, 2026""",1544,https://himalayanrides.com?_payment_key=7149-ec0cf-c995b-2f76,36 Chelvin Dr.,georgetown,Canada,William (Bill) MCKENZIE,ourwully@gmail.com,36 Chelvin Dr.,georgetown,Canada,1,WTE,,2026-01-26 20:07,1542,$4545.00,William (Bill) MCKENZIE,"William (Bill) MCKENZIE
+36 Chelvin Dr.
+georgetown
+Canada
+
+Email: ourwully@gmail.com
+Phone: (905) 965-6763",,,"booking-confirmation,post-booking-timeline,booking-updated",1/26/2026 3:00pm
+Amshu Dali,Amshu,Dali,dali.amshu@gmail.com,(646) 504-1281,amshu_dali_dali.amshu@gmail.com,"Customer,Traveler",,,,Active,"""1898 | Test Trip | Apr 22, 2026"",""1963 | Test Trip | Apr 22, 2026""","""1898 | Test Trip | Apr 22, 2026"",""1963 | Test Trip | Apr 22, 2026""","1900,1964","https://himalayanrides.com?_payment_key=7641-76032-b8008-1ddf, https://himalayanrides.com?_payment_key=452d-467eb-e6fb1-e881",1612 Sereno Court,Vienna,United States (US),Amshu Dali,dali.amshu@gmail.com,1612 Sereno Court,Vienna,United States (US),1,WTE,,2026-02-07 17:16,1963,$11.75,Amshu Dali,"Amshu Dali
+1612 Sereno Court
+Vienna
+United States (US)
+
+Email: dali.amshu@gmail.com
+Phone: (646) 504-1281",,,"booking-confirmation,payment-notification-1,booking-updated,payment-notification-1",2/6/2026 1:57pm
+Carlos Pradhan,Carlos,Pradhan,carlos@himalayanrides.com,(646) 504-1281,carlos_pradhan_carlos@himalayanrides.com,"Customer,Traveler",,,,Active,"""1898 | Test Trip | Apr 22, 2026"",""1955 | Test Trip | Apr 22, 2026"",""1963 | Test Trip | Apr 22, 2026""",,1965,https://himalayanrides.com?_payment_key=452d-467eb-e6fb1-e881,1612 Sereno Ct,Vienna,United States (US),Carlos Pradhan,carlos@himalayanrides.com,1612 Sereno Ct,Vienna,United States (US),1,WTE,,2026-02-07 08:49,1963,$0.00,Carlos Pradhan,"Carlos Pradhan
+1612 Sereno Ct
+Vienna
+United States (US)
+
+Email: carlos@himalayanrides.com
+Phone: (646) 504-1281",,,"booking-confirmation,payment-notification-1",2/6/2026 2:02pm
+Mandil Pradhan,Mandil,Pradhan,mandil.pradhan@gmail.com,(415) 484-0480,mandil_pradhan_mandil.pradhan@gmail.com,"Customer,Traveler",,,,Active,"""1955 | Test Trip | Apr 22, 2026"",""1959 | Test Trip | Apr 22, 2026"",""1954 | Test Trip | Apr 22, 2026""","""1955 | Test Trip | Apr 22, 2026"",""1954 | Test Trip | Apr 22, 2026""","1957,1956","https://staging31.himalayanrides.com?_payment_key=cd55-bbeac-bc15e-6fba, https://staging31.himalayanrides.com?_payment_key=cb14-04819-c5a6d-a196",1612 Sereno Ct,Vienna,Nepal,Mandil Pradhan,mandil.pradhan@gmail.com,1612 Sereno Ct,Vienna,Nepal,1,WTE,,2026-02-07 16:52,1954,$10.70,Mandil Pradhan,"Mandil Pradhan
+1612 Sereno Ct
+Vienna
+Nepal
+
+Email: mandil.pradhan@gmail.com
+Phone: (415) 484-0480",,,"booking-confirmation,payment-notification-1,booking-confirmation,payment-notification-1",2/7/2026 11:37am
+Mandil Pradhan,Mandil,Pradhan,info@himalayanrides.com,(415) 484-0480,mandil_pradhan_info@himalayanrides.com,Customer,,,,Active,,,1960,https://staging31.himalayanrides.com?_payment_key=def6-6ee51-8ee26-e8f6,1612 Sereno Ct,Vienna,Nepal,Mandil Pradhan,info@himalayanrides.com,1612 Sereno Ct,Vienna,Nepal,,WTE,,2026-02-07 06:26,1959,$0.00,,"Mandil Pradhan
+1612 Sereno Ct
+Vienna
+Nepal
+
+Email: info@himalayanrides.com
+Phone: (415) 484-0480",,,"booking-confirmation,payment-notification-1",2/7/2026 12:11pm
+Bubbles Dali,Bubbles,Dali,ampshoe@gmail.com,(980) 200-2517,bubbles_dali_ampshoe@gmail.com,Traveler,,,,Active,"""1963 | Test Trip | Apr 22, 2026""",,,,,,Nepal,,,,,,2,WTE,,2026-02-07 08:49,,$0.00,Bubbles Dali,"Email: ampshoe@gmail.com
+Phone: (980) 200-2517",,,,2/7/2026 2:34pm
+Carlos Dali Pradhan,Carlos,Dali Pradhan,carlos@himalayanrides.com,(980) 200-2517,carlos_dali_pradhan_carlos@himalayanrides.com,"Customer,Traveler",,,,Active,"""1951 | Test Trip | Apr 22, 2026""","""1951 | Test Trip | Apr 22, 2026""",1953,https://staging31.himalayanrides.com?_payment_key=fe62-2045a-11b93-ec9d,12 Pier St,Sydney,Australia,Carlos Dali Pradhan,carlos@himalayanrides.com,12 Pier St,Sydney,Australia,1,WTE,,2026-02-07 16:50,1951,$5.70,Carlos Dali Pradhan,"Carlos Dali Pradhan
+12 Pier St
+Sydney
+Australia
+
+Email: carlos@himalayanrides.com
+Phone: (980) 200-2517",,,"booking-confirmation,payment-notification-1",2/7/2026 10:35pm
+Kalu Dali,Kalu,Dali,kalu@himalayanrides.com,(646) 504-1281,kalu_dali_kalu@himalayanrides.com,Traveler,,,,Active,"""1951 | Test Trip | Apr 22, 2026""",,,,,,United States (US),,,,,,2,WTE,,2026-02-07 16:50,,$0.00,Kalu Dali,"Email: kalu@himalayanrides.com
+Phone: (646) 504-1281",,,,2/7/2026 10:35pm
+Mandira Pradhan,Mandira,Pradhan,mandil.pradhan@gmail.com,(415) 484-0480,mandira_pradhan_mandil.pradhan@gmail.com,"Customer,Traveler",,,,Active,"""1957 | Test Trip | Apr 22, 2026""","""1957 | Test Trip | Apr 22, 2026""",1958,https://staging31.himalayanrides.com?_payment_key=5df0-e581f-03847-7d30,1612 Sereno Ct,Vienna,Nepal,Mandira Pradhan,mandil.pradhan@gmail.com,1612 Sereno Ct,Vienna,Nepal,1,WTE,,2026-02-07 16:56,1957,$5.00,Mandira Pradhan,"Mandira Pradhan
+1612 Sereno Ct
+Vienna
+Nepal
+
+Email: mandil.pradhan@gmail.com
+Phone: (415) 484-0480",,,"booking-confirmation,payment-notification-1",2/7/2026 10:41pm
+Amshu Dali,Amshu,Dali,ampshoe@gmail.com,(646) 504-1281,amshu_dali_ampshoe@gmail.com,"Customer,Traveler",,,,Active,"""1959 | Test Trip | Apr 22, 2026""","""1959 | Test Trip | Apr 22, 2026""",1961,https://staging31.himalayanrides.com?_payment_key=def6-6ee51-8ee26-e8f6,1612 Sereno Ct,Vienna,United States (US),Amshu Dali,ampshoe@gmail.com,1612 Sereno Ct,Vienna,United States (US),1,WTE,,2026-02-07 16:56,1959,$4.75,,"Amshu Dali
+1612 Sereno Ct
+Vienna
+United States (US)
+
+Email: ampshoe@gmail.com
+Phone: (646) 504-1281",,,"booking-updated,payment-notification-1",2/7/2026 10:41pm
